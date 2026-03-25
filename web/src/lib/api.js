@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001/api"
 });
 
 api.interceptors.request.use((config) => {
@@ -50,6 +50,16 @@ export async function fetchIntegrations() {
   return data;
 }
 
+export async function fetchUsers() {
+  const { data } = await api.get("/users");
+  return data;
+}
+
+export async function updateUserAccess(id, payload) {
+  const { data } = await api.put(`/users/${id}/access`, payload);
+  return data;
+}
+
 async function createResource(path, payload) {
   const { data } = await api.post(path, payload);
   return data;
@@ -68,6 +78,7 @@ async function deleteResource(path) {
 export const createTenant = (payload) => createResource("/tenants", payload);
 export const createStudent = (payload) => createResource("/students", payload);
 export const createAttendanceRecord = (payload) => createResource("/attendance-records", payload);
+export const createTimetableEntry = (payload) => createResource("/timetable", payload);
 export const createExam = (payload) => createResource("/exams", payload);
 export const createResult = (payload) => createResource("/results", payload);
 export const createFee = (payload) => createResource("/fees", payload);
@@ -77,6 +88,7 @@ export const createLeave = (payload) => createResource("/leaves", payload);
 export const updateTenant = (id, payload) => updateResource(`/tenants/${id}`, payload);
 export const updateStudent = (id, payload) => updateResource(`/students/${id}`, payload);
 export const updateAttendanceRecord = (id, payload) => updateResource(`/attendance-records/${id}`, payload);
+export const updateTimetableEntry = (id, payload) => updateResource(`/timetable/${id}`, payload);
 export const updateExam = (id, payload) => updateResource(`/exams/${id}`, payload);
 export const updateResult = (id, payload) => updateResource(`/results/${id}`, payload);
 export const updateFee = (id, payload) => updateResource(`/fees/${id}`, payload);
@@ -86,6 +98,7 @@ export const updateLeave = (id, payload) => updateResource(`/leaves/${id}`, payl
 export const deleteTenant = (id) => deleteResource(`/tenants/${id}`);
 export const deleteStudent = (id) => deleteResource(`/students/${id}`);
 export const deleteAttendanceRecord = (id) => deleteResource(`/attendance-records/${id}`);
+export const deleteTimetableEntry = (id) => deleteResource(`/timetable/${id}`);
 export const deleteExam = (id) => deleteResource(`/exams/${id}`);
 export const deleteResult = (id) => deleteResource(`/results/${id}`);
 export const deleteFee = (id) => deleteResource(`/fees/${id}`);

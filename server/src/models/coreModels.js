@@ -72,6 +72,9 @@ const announcementSchema = new Schema(
     audience: { type: String, required: true },
     type: { type: String, default: "Circular" },
     date: { type: String, required: true },
+    documentName: { type: String, default: "" },
+    documentType: { type: String, default: "" },
+    documentData: { type: String, default: "" },
     content: { type: String, required: true },
     status: { type: String, default: "Draft" }
   },
@@ -117,6 +120,8 @@ const examSchema = new Schema(
     examDate: { type: String, default: "" },
     uploadedBy: { type: String, default: "" },
     fileName: { type: String, default: "" },
+    fileType: { type: String, default: "" },
+    fileData: { type: String, default: "" },
     hallTickets: { type: String, default: "Draft" },
     resultStatus: { type: String, default: "Pending" }
   },
@@ -151,6 +156,19 @@ const attendanceRecordSchema = new Schema(
   { timestamps: true }
 );
 
+const timetableSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    className: { type: String, required: true },
+    day: { type: String, required: true },
+    period: { type: String, required: true },
+    subject: { type: String, required: true },
+    teacher: { type: String, default: "" },
+    room: { type: String, default: "" }
+  },
+  { timestamps: true }
+);
+
 const userSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
@@ -158,6 +176,8 @@ const userSchema = new Schema(
     email: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
     role: { type: String, required: true },
+    accessPermissions: { type: [String], default: [] },
+    responsibilities: { type: String, default: "" },
     phone: { type: String, default: "" },
     campus: { type: String, default: "" },
     avatar: { type: String, default: "" }
@@ -175,4 +195,5 @@ export const LeaveModel = models.Leave || model("Leave", leaveSchema);
 export const ExamModel = models.Exam || model("Exam", examSchema);
 export const ResultModel = models.Result || model("Result", resultSchema);
 export const AttendanceRecordModel = models.AttendanceRecord || model("AttendanceRecord", attendanceRecordSchema);
+export const TimetableModel = models.Timetable || model("Timetable", timetableSchema);
 export const UserModel = models.User || model("User", userSchema);

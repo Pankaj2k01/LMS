@@ -11,7 +11,8 @@ import {
   mockResults,
   mockStaff,
   mockStudents,
-  mockTenants
+  mockTenants,
+  mockTimetable
 } from "./mockData.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +26,7 @@ const mutableCollections = {
   attendanceRecords: mockAttendanceRecords,
   exams: mockExams,
   results: mockResults,
+  timetable: mockTimetable,
   fees: mockFees,
   homework: mockHomework,
   announcements: mockAnnouncements,

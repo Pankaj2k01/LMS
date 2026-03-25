@@ -10,6 +10,7 @@ import {
   mockStaff,
   mockStudents,
   mockTenants,
+  mockTimetable,
   mockUsers
 } from "../data/mockData.js";
 import {
@@ -23,6 +24,7 @@ import {
   StaffModel,
   StudentModel,
   TenantModel,
+  TimetableModel,
   UserModel
 } from "../models/coreModels.js";
 import { createRepository } from "./coreRepository.js";
@@ -44,6 +46,7 @@ export const repositories = {
   attendanceRecords: createRepository({ model: AttendanceRecordModel, collection: mockAttendanceRecords }),
   exams: createRepository({ model: ExamModel, collection: mockExams }),
   results: createRepository({ model: ResultModel, collection: mockResults }),
+  timetable: createRepository({ model: TimetableModel, collection: mockTimetable }),
   fees: createRepository({ model: FeeModel, collection: mockFees }),
   announcements: createRepository({ model: AnnouncementModel, collection: mockAnnouncements }),
   homework: createRepository({ model: HomeworkModel, collection: mockHomework }),

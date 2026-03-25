@@ -3,6 +3,8 @@ import authRoutes from "./authRoutes.js";
 import { createPlatformRoutes } from "./platformRoutes.js";
 import { createCrudRouter } from "./crudRoutes.js";
 import { repositories } from "../services/repositories.js";
+import { authMiddleware, requireRoles } from "../middleware/auth.js";
+import { withAsync } from "../utils/validation.js";
 
 function numberValue(value, fallback = 0) {
   return Number(value ?? fallback);
@@ -94,8 +96,8 @@ export function createApiRouter(getDbStatus) {
     createCrudRouter({
       repository: repositories.attendanceRecords,
       listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      createRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
+      createRoles: ["super_admin", "school_admin", "vice_principal"],
+      updateRoles: ["super_admin", "school_admin", "vice_principal"],
       deleteRoles: ["super_admin", "school_admin", "vice_principal"],
       requiredFields: ["className", "date", "present", "absent"],
       buildRecord: (body) => ({
@@ -118,6 +120,85 @@ export function createApiRouter(getDbStatus) {
     })
   );
 
+  router.get(
+    "/users",
+    authMiddleware,
+    requireRoles("school_admin"),
+    withAsync(async (_req, res) => {
+      const users = await repositories.users.list();
+      res.json(
+        users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          accessPermissions: user.accessPermissions || [],
+          responsibilities: user.responsibilities || "",
+          phone: user.phone,
+          campus: user.campus,
+          avatar: user.avatar
+        }))
+      );
+    })
+  );
+
+  router.put(
+    "/users/:id/access",
+    authMiddleware,
+    requireRoles("school_admin"),
+    withAsync(async (req, res) => {
+      const updated = await repositories.users.update(req.params.id, {
+        accessPermissions: Array.isArray(req.body.accessPermissions) ? req.body.accessPermissions : [],
+        responsibilities: req.body.responsibilities || ""
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.json({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+        accessPermissions: updated.accessPermissions || [],
+        responsibilities: updated.responsibilities || "",
+        phone: updated.phone,
+        campus: updated.campus,
+        avatar: updated.avatar
+      });
+    })
+  );
+
+  router.use(
+    "/timetable",
+    createCrudRouter({
+      repository: repositories.timetable,
+      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
+      createRoles: ["super_admin", "school_admin", "vice_principal"],
+      updateRoles: ["super_admin", "school_admin", "vice_principal"],
+      deleteRoles: ["super_admin", "school_admin"],
+      requiredFields: ["className", "day", "period", "subject"],
+      buildRecord: (body) => ({
+        id: `tt-${Date.now()}`,
+        className: body.className,
+        day: body.day,
+        period: body.period,
+        subject: body.subject,
+        teacher: body.teacher || "",
+        room: body.room || ""
+      }),
+      buildUpdates: (body) => ({
+        className: body.className,
+        day: body.day,
+        period: body.period,
+        subject: body.subject,
+        teacher: body.teacher || "",
+        room: body.room || ""
+      })
+    })
+  );
+
   router.use(
     "/exams",
     createCrudRouter({
@@ -135,6 +216,8 @@ export function createApiRouter(getDbStatus) {
         examDate: body.examDate || "",
         uploadedBy: body.uploadedBy || "",
         fileName: body.fileName || "",
+        fileType: body.fileType || "",
+        fileData: body.fileData || "",
         hallTickets: body.hallTickets || "Draft",
         resultStatus: body.resultStatus || "Pending"
       }),
@@ -145,6 +228,8 @@ export function createApiRouter(getDbStatus) {
         examDate: body.examDate || "",
         uploadedBy: body.uploadedBy || "",
         fileName: body.fileName || "",
+        fileType: body.fileType || "",
+        fileData: body.fileData || "",
         hallTickets: body.hallTickets || "Draft",
         resultStatus: body.resultStatus || "Pending"
       })
@@ -192,7 +277,7 @@ export function createApiRouter(getDbStatus) {
       createRoles: ["super_admin", "school_admin", "vice_principal"],
       updateRoles: ["super_admin", "school_admin", "vice_principal"],
       deleteRoles: ["super_admin", "school_admin"],
-      requiredFields: ["category", "className", "dueDate"],
+      requiredFields: ["studentName", "category", "className", "dueDate"],
       buildRecord: (body) => ({
         id: `fee-${Date.now()}`,
         studentName: body.studentName || "",
@@ -221,7 +306,10 @@ export function createApiRouter(getDbStatus) {
     "/announcements",
     createCrudRouter({
       repository: repositories.announcements,
-      roles: ["school_admin", "vice_principal", "teacher", "super_admin"],
+      listRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
+      createRoles: ["school_admin", "vice_principal", "super_admin"],
+      updateRoles: ["school_admin", "vice_principal", "super_admin"],
+      deleteRoles: ["school_admin", "super_admin"],
       requiredFields: ["title", "audience", "date", "content"],
       buildRecord: (body) => ({
         id: `ann-${Date.now()}`,
@@ -229,6 +317,9 @@ export function createApiRouter(getDbStatus) {
         audience: body.audience,
         type: body.type || "Circular",
         date: body.date,
+        documentName: body.documentName || "",
+        documentType: body.documentType || "",
+        documentData: body.documentData || "",
         content: body.content,
         status: body.status || "Draft"
       }),
@@ -237,6 +328,9 @@ export function createApiRouter(getDbStatus) {
         audience: body.audience,
         type: body.type || "Circular",
         date: body.date,
+        documentName: body.documentName || "",
+        documentType: body.documentType || "",
+        documentData: body.documentData || "",
         content: body.content,
         status: body.status || "Draft"
       })

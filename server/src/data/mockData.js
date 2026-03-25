@@ -5,21 +5,12 @@ export const mockUsers = [
     email: "superadmin@sms.com",
     password: "super123",
     role: "super_admin",
+    accessPermissions: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
+    responsibilities: "Platform oversight and school review",
     phone: "+91 99887 66554",
     campus: "EduCore HQ",
     avatar:
       "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80"
-  },
-  {
-    id: "support-001",
-    name: "Anita Deshmukh",
-    email: "support@sms.com",
-    password: "support123",
-    role: "support_agent",
-    phone: "+91 99887 11223",
-    campus: "EduCore HQ",
-    avatar:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80"
   },
   {
     id: "admin-001",
@@ -27,6 +18,8 @@ export const mockUsers = [
     email: "admin@sms.com",
     password: "admin123",
     role: "school_admin",
+    accessPermissions: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
+    responsibilities: "Principal access with full school administration control",
     phone: "+91 98765 43210",
     campus: "Rahul Education Campus",
     avatar:
@@ -38,6 +31,8 @@ export const mockUsers = [
     email: "vice@sms.com",
     password: "vice123",
     role: "vice_principal",
+    accessPermissions: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
+    responsibilities: "Approves student leave and manages academic operations",
     phone: "+91 98220 44556",
     campus: "Rahul Education Campus",
     avatar:
@@ -49,65 +44,12 @@ export const mockUsers = [
     email: "teacher@sms.com",
     password: "teacher123",
     role: "teacher",
+    accessPermissions: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
+    responsibilities: "Class teacher for Grade 3 - B with homework and result visibility",
     phone: "+91 98765 11111",
     campus: "Rahul Education Campus",
     avatar:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
-  },
-  {
-    id: "accountant-001",
-    name: "Nitin Verma",
-    email: "accountant@sms.com",
-    password: "accountant123",
-    role: "accountant",
-    phone: "+91 98111 77889",
-    campus: "Rahul Education Campus",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80"
-  },
-  {
-    id: "librarian-001",
-    name: "Ritu Singh",
-    email: "librarian@sms.com",
-    password: "librarian123",
-    role: "librarian",
-    phone: "+91 98000 66778",
-    campus: "Rahul Education Campus",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
-  },
-  {
-    id: "transport-001",
-    name: "Suresh Pawar",
-    email: "transport@sms.com",
-    password: "transport123",
-    role: "transport_staff",
-    phone: "+91 98989 44112",
-    campus: "Rahul Education Campus",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80"
-  },
-  {
-    id: "student-001",
-    name: "Ivan Vinod Vishwakarma",
-    email: "student@sms.com",
-    password: "student123",
-    role: "student",
-    phone: "+91 90000 11122",
-    campus: "Rahul Education Campus",
-    avatar:
-      "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=300&q=80"
-  },
-  {
-    id: "parent-001",
-    name: "Vinod Vishwakarma",
-    email: "parent@sms.com",
-    password: "parent123",
-    role: "parent",
-    phone: "+91 98765 22222",
-    campus: "Rahul Education Campus",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80"
   }
 ];
 
@@ -229,12 +171,12 @@ export const mockStaff = [
   {
     id: "staff-001",
     name: "Priya Sharma",
-    designation: "Mathematics Teacher",
+    designation: "Class Teacher",
     department: "Academics",
     qualification: "M.Sc, B.Ed",
     workload: "28 periods/week",
     leaveBalance: 9,
-    classes: "Grade 3, Grade 4"
+    classes: "Grade 3 - B"
   },
   {
     id: "staff-002",
@@ -290,6 +232,15 @@ export const mockTimetable = [
     room: "3B"
   },
   {
+    id: "tt-003a",
+    className: "Grade 3 - B",
+    day: "Monday",
+    period: "10:20 - 11:05",
+    subject: "EVS",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
     id: "tt-003",
     className: "Grade 8 - A",
     day: "Monday",
@@ -297,6 +248,78 @@ export const mockTimetable = [
     subject: "Science Lab",
     teacher: "Karan Sethi",
     room: "Lab 2"
+  },
+  {
+    id: "tt-004",
+    className: "Grade 3 - B",
+    day: "Tuesday",
+    period: "08:30 - 09:15",
+    subject: "Science",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
+    id: "tt-004a",
+    className: "Grade 3 - B",
+    day: "Tuesday",
+    period: "09:15 - 10:00",
+    subject: "Hindi",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
+    id: "tt-005",
+    className: "Grade 3 - B",
+    day: "Wednesday",
+    period: "08:30 - 09:15",
+    subject: "Social Studies",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
+    id: "tt-005a",
+    className: "Grade 3 - B",
+    day: "Wednesday",
+    period: "09:15 - 10:00",
+    subject: "Computer",
+    teacher: "Priya Sharma",
+    room: "Computer Lab"
+  },
+  {
+    id: "tt-006",
+    className: "Grade 3 - B",
+    day: "Thursday",
+    period: "08:30 - 09:15",
+    subject: "Mathematics",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
+    id: "tt-006a",
+    className: "Grade 3 - B",
+    day: "Thursday",
+    period: "09:15 - 10:00",
+    subject: "GK",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
+    id: "tt-007",
+    className: "Grade 3 - B",
+    day: "Friday",
+    period: "08:30 - 09:15",
+    subject: "English",
+    teacher: "Priya Sharma",
+    room: "3B"
+  },
+  {
+    id: "tt-007a",
+    className: "Grade 3 - B",
+    day: "Friday",
+    period: "09:15 - 10:00",
+    subject: "Art",
+    teacher: "Priya Sharma",
+    room: "Art Room"
   }
 ];
 
@@ -353,21 +376,23 @@ export const mockResults = [
 export const mockAnnouncements = [
   {
     id: "ann-001",
-    title: "Annual Day Practice Schedule",
+    title: "School Holiday Circular",
     audience: "All Students",
-    type: "Circular",
+    type: "Holiday Circular",
     date: "2026-03-20",
+    documentName: "school-holiday-circular.pdf",
     status: "Published",
-    content: "Practice sessions will run from 2:30 PM to 4:30 PM this week."
+    content: "School will remain closed on Friday due to a local public holiday. Regular classes will resume on Saturday."
   },
   {
     id: "ann-002",
-    title: "Transport Route Timing Revision",
-    audience: "Parents",
-    type: "Announcement",
+    title: "Urgent School Closure Notice",
+    audience: "All Staff and Students",
+    type: "Urgent Closure",
     date: "2026-03-18",
+    documentName: "urgent-school-closure-notice.pdf",
     status: "Published",
-    content: "Morning pickup routes have been shifted by 10 minutes."
+    content: "Due to heavy rain and city advisory, the school campus will remain closed today. Further updates will be shared through EduCore circulars."
   }
 ];
 
@@ -615,10 +640,6 @@ export const mockRoles = [
     permissions: ["tenant.manage", "subscription.manage", "billing.manage", "support.manage", "audit.view"]
   },
   {
-    role: "support_agent",
-    permissions: ["tenant.read", "ticket.manage", "audit.read"]
-  },
-  {
     role: "school_admin",
     permissions: ["institution.manage", "academics.manage", "staff.manage", "fees.manage", "communication.manage"]
   },
@@ -627,32 +648,8 @@ export const mockRoles = [
     permissions: ["academics.manage", "staff.read", "leave.approve", "reports.view"]
   },
   {
-    role: "class_teacher",
-    permissions: ["attendance.manage", "homework.manage", "communication.class", "student.read"]
-  },
-  {
     role: "teacher",
     permissions: ["attendance.manage", "homework.manage", "results.manage", "content.manage"]
-  },
-  {
-    role: "accountant",
-    permissions: ["fees.manage", "reports.finance", "receipts.issue"]
-  },
-  {
-    role: "librarian",
-    permissions: ["library.manage"]
-  },
-  {
-    role: "transport_staff",
-    permissions: ["transport.manage", "transport.read"]
-  },
-  {
-    role: "student",
-    permissions: ["self.view", "homework.submit", "results.view"]
-  },
-  {
-    role: "parent",
-    permissions: ["child.view", "fees.pay", "leave.apply", "messages.view"]
   }
 ];
 

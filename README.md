@@ -32,7 +32,8 @@ EduCore is a focused web application for teacher and higher-management workflows
 - Result creation and approval
 - Fee management dashboard
 - Homework management with online and offline modes
-- Notification broadcast
+- Circular module for holiday notices, urgent school closure notices, and fee due reminders
+- PDF / image / DOC / DOCX upload support in circulars and exam timetable records
 - Leave application and approval flow
 - JWT login with MongoDB-backed users
 - CRUD APIs for the active release modules
@@ -55,7 +56,8 @@ npm run dev:api
 Start frontend:
 
 ```bash
-npm run dev:web
+cd /Users/pankajnebbulalyadav/Documents/LMS/web
+npm run dev -- --host 127.0.0.1
 ```
 
 ## Environment
@@ -67,6 +69,7 @@ PORT=5001
 JWT_SECRET=change-this-secret
 MONGODB_URI=mongodb://127.0.0.1:27017/sms
 CLIENT_URL=http://127.0.0.1:5173
+CLIENT_URLS=http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:5173,http://localhost:5174
 ```
 
 Create `web/.env`:
@@ -87,3 +90,4 @@ VITE_API_BASE_URL=http://127.0.0.1:5001/api
 - This codebase is currently narrowed to teacher and higher-management roles.
 - Extra modules from the earlier broad prototype are not part of the active release scope.
 - MongoDB is supported; when unavailable, the app falls back to local mock persistence for key collections.
+- File uploads for circulars and exam timetable records are currently stored on the record as file data so they work locally without separate S3/Cloudinary setup.

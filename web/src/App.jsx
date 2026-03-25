@@ -4,14 +4,17 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  Bus,
   CheckSquare,
   ChevronRight,
   ClipboardList,
   CreditCard,
   Download,
   FileBadge,
+  FolderKanban,
   GraduationCap,
   LayoutDashboard,
+  Library,
   LogOut,
   Menu,
   Megaphone,
@@ -39,6 +42,7 @@ import {
   createLeave,
   createResult,
   createStudent,
+  createTimetableEntry,
   deleteAnnouncement,
   deleteAttendanceRecord,
   deleteExam,
@@ -47,11 +51,13 @@ import {
   deleteLeave,
   deleteResult,
   deleteStudent,
+  deleteTimetableEntry,
   fetchCurrentUser,
   fetchDashboard,
   fetchIntegrations,
   fetchPlatformData,
   fetchRoles,
+  fetchUsers,
   login,
   logout,
   updateAnnouncement,
@@ -62,6 +68,8 @@ import {
   updateLeave,
   updateResult,
   updateStudent,
+  updateTimetableEntry,
+  updateUserAccess,
 } from "./lib/api";
 
 const navigation = [
@@ -71,9 +79,19 @@ const navigation = [
   { id: "exams", label: "Exams & Results", icon: GraduationCap },
   { id: "fees", label: "Fee Management", icon: CreditCard },
   { id: "homework", label: "Homework", icon: BookOpen },
-  { id: "communication", label: "Notifications", icon: Megaphone },
+  { id: "communication", label: "Circulars", icon: Megaphone },
   { id: "leave", label: "Leave Applications", icon: ClipboardList },
   { id: "settings", label: "Settings", icon: Settings }
+];
+
+const moduleAccessOptions = [
+  { id: "sis", label: "Students" },
+  { id: "attendance", label: "Attendance" },
+  { id: "exams", label: "Exams & Results" },
+  { id: "fees", label: "Fee Management" },
+  { id: "homework", label: "Homework" },
+  { id: "communication", label: "Circulars" },
+  { id: "leave", label: "Leave Applications" }
 ];
 
 const roleTabs = {
@@ -91,7 +109,7 @@ const roleTabs = {
 
 const loginNotes = [
   "This release is limited to management and teacher workflows.",
-  "Included modules: Results & Exams, Leave, Fees, Homework, and Notifications.",
+  "Included modules: Results & Exams, Leave, Fees, Homework, and Circulars.",
   "Secure JWT authentication with MongoDB-backed accounts."
 ];
 
@@ -112,10 +130,11 @@ const schoolStats = [
 const initialForms = {
   student: { name: "", admissionNo: "", className: "", parentName: "", feesDue: "", transportRoute: "", medical: "", attendance: "", performance: "Pending", documents: "" },
   attendance: { className: "", date: "", present: "", absent: "", late: "", markedBy: "" },
-  exam: { name: "", className: "", schedule: "", examDate: "", uploadedBy: "", fileName: "", hallTickets: "Draft", resultStatus: "Pending" },
+  timetable: { className: "", day: "Monday", period: "", subject: "", teacher: "", room: "" },
+  exam: { name: "", className: "", schedule: "", examDate: "", uploadedBy: "", fileName: "", fileType: "", fileData: "", hallTickets: "Draft", resultStatus: "Pending" },
   result: { student: "", className: "", exam: "", percentage: "", grade: "", rank: "", approvalStatus: "Pending", approvedBy: "" },
   fee: { studentName: "", category: "", className: "", dueDate: "", amount: "", paid: "", pending: "", status: "Pending" },
-  announcement: { title: "", audience: "", type: "Circular", date: "", content: "", status: "Published" },
+  announcement: { title: "", audience: "", type: "Circular", date: "", documentName: "", documentType: "", documentData: "", content: "", status: "Published" },
   homework: { subject: "", className: "", title: "", dueDate: "", mode: "Offline", studentSubmission: "", completionStatus: "Pending", submissions: "", totalStudents: "", status: "Active" },
   leave: { applicant: "", role: "", from: "", to: "", reason: "", status: "Pending" }
 };
@@ -133,7 +152,7 @@ const sectionTitles = {
   exam: "Exam",
   result: "Result",
   fee: "Fee",
-  announcement: "Announcement",
+  announcement: "Circular",
   homework: "Homework",
   leave: "Leave Request"
 };
@@ -145,6 +164,21 @@ const formatRoleLabel = (role) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const getAccessibleTabsForUser = (user) => {
+  const baseTabs = roleTabs[user?.role] || ["overview", "settings"];
+  if (!user) {
+    return ["overview", "settings"];
+  }
+
+  if (["school_admin", "super_admin"].includes(user.role)) {
+    return baseTabs;
+  }
+
+  const assignedTabs = Array.isArray(user.accessPermissions) && user.accessPermissions.length > 0 ? user.accessPermissions : baseTabs;
+  const filtered = baseTabs.filter((tab) => assignedTabs.includes(tab) || ["overview", "settings"].includes(tab));
+  return [...new Set(["overview", ...filtered, "settings"])];
+};
+
 const getPageMeta = (activeTab) => {
   const labels = {
     overview: { title: "Dashboard", subtitle: "Role-based overview of academic and operational activity." },
@@ -153,7 +187,7 @@ const getPageMeta = (activeTab) => {
     exams: { title: "Examinations", subtitle: "Exam schedules, result status, and academic performance." },
     fees: { title: "Fee Management", subtitle: "Collection, dues, receipts, and payment status." },
     homework: { title: "Homework", subtitle: "Assignments, due dates, and submission tracking." },
-    communication: { title: "Notifications", subtitle: "Broadcast circulars, announcements, and notices." },
+  communication: { title: "Circulars", subtitle: "Broadcast school circulars such as holidays, urgency notices, closures, and due reminders." },
     leave: { title: "Leave", subtitle: "Leave requests, approvals, and status tracking." },
     settings: { title: "Settings", subtitle: "Account access and system configuration." }
   };
@@ -161,12 +195,106 @@ const getPageMeta = (activeTab) => {
   return labels[activeTab] || labels.overview;
 };
 
+const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getSubjectsForClass(className, timetable = []) {
+  return [...new Set(timetable.filter((item) => item.className === className).map((item) => item.subject).filter(Boolean))];
+}
+
+function buildReceiptContent(fee) {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>EduCore Fee Receipt</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #0f172a; margin: 24px; }
+      .wrap { max-width: 760px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 16px; overflow: hidden; }
+      .head { background: #0f2f5f; color: white; padding: 24px; }
+      .head h1 { margin: 0 0 8px; font-size: 28px; }
+      .head p { margin: 4px 0; font-size: 14px; opacity: 0.92; }
+      .section { padding: 24px; }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+      td:first-child { color: #475569; width: 34%; }
+      .footer { padding: 24px; background: #f8fafc; font-size: 12px; color: #64748b; }
+      .status { display: inline-block; padding: 6px 12px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="head">
+        <h1>EduCore</h1>
+        <p>Rahul Education Campus</p>
+        <p>Official Fee Receipt</p>
+      </div>
+      <div class="section">
+        <table>
+          <tr><td>Receipt No.</td><td>${fee.id}</td></tr>
+          <tr><td>Student Name</td><td>${fee.studentName || "Student"}</td></tr>
+          <tr><td>Class / Section</td><td>${fee.className}</td></tr>
+          <tr><td>Fee Category</td><td>${fee.category}</td></tr>
+          <tr><td>Total Amount</td><td>${currency(fee.amount)}</td></tr>
+          <tr><td>Paid Amount</td><td>${currency(fee.paid)}</td></tr>
+          <tr><td>Pending Amount</td><td>${currency(fee.pending)}</td></tr>
+          <tr><td>Due Date</td><td>${fee.dueDate}</td></tr>
+          <tr><td>Status</td><td><span class="status">${fee.status}</span></td></tr>
+          <tr><td>Generated On</td><td>${new Date().toLocaleDateString("en-IN")}</td></tr>
+        </table>
+      </div>
+      <div class="footer">
+        This is a system-generated EduCore receipt for school fee records.
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+function buildWeeklyTimetableContent(className, timetable = []) {
+  const lines = [`EduCore Weekly Timetable`, `School: Rahul Education Campus`, `Class: ${className}`, ``];
+  weekDays.forEach((day) => {
+    lines.push(day);
+    const rows = timetable.filter((item) => item.className === className && item.day === day);
+    if (rows.length === 0) {
+      lines.push("  No lecture scheduled");
+    } else {
+      rows.forEach((row) => lines.push(`  ${row.period} - ${row.subject} - ${row.teacher || "Teacher"} - Room ${row.room || "-"}`));
+    }
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+
+function buildAnnouncementDocument(item) {
+  return `EduCore Notification Document
+
+Title: ${item.title}
+Audience: ${item.audience}
+Type: ${item.type}
+Date: ${item.date}
+Status: ${item.status}
+Document: ${item.documentName || "No file attached"}
+
+Details:
+${item.content}`;
+}
+
+async function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Unable to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [platform, setPlatform] = useState(null);
   const [roles, setRoles] = useState([]);
+  const [users, setUsers] = useState([]);
   const [integrations, setIntegrations] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
     const stored = localStorage.getItem("sms_user");
@@ -181,6 +309,7 @@ function App() {
   const [editing, setEditing] = useState({
     student: null,
     attendance: null,
+    timetable: null,
     exam: null,
     result: null,
     fee: null,
@@ -191,7 +320,7 @@ function App() {
   const [submitting, setSubmitting] = useState("");
 
   const isAuthenticated = Boolean(currentUser && localStorage.getItem("sms_token"));
-  const accessibleTabs = useMemo(() => roleTabs[currentUser?.role] || ["overview", "settings"], [currentUser]);
+  const accessibleTabs = useMemo(() => getAccessibleTabsForUser(currentUser), [currentUser]);
   const pageMeta = useMemo(() => getPageMeta(activeTab), [activeTab]);
   const filteredNavigation = useMemo(
     () => navigation.filter((item) => accessibleTabs.includes(item.id)),
@@ -236,11 +365,12 @@ function App() {
     setDataLoading(true);
     setError("");
     try {
-      const [dashboardResult, platformResult, rolesResult, integrationsResult] = await Promise.allSettled([
+      const [dashboardResult, platformResult, rolesResult, integrationsResult, usersResult] = await Promise.allSettled([
         fetchDashboard(),
         fetchPlatformData(),
         fetchRoles(),
-        fetchIntegrations()
+        fetchIntegrations(),
+        currentUser?.role === "school_admin" ? fetchUsers() : Promise.resolve([])
       ]);
 
       if (dashboardResult.status !== "fulfilled" || platformResult.status !== "fulfilled") {
@@ -251,6 +381,7 @@ function App() {
       setPlatform(platformResult.value);
       setRoles(rolesResult.status === "fulfilled" ? rolesResult.value : []);
       setIntegrations(integrationsResult.status === "fulfilled" ? integrationsResult.value : null);
+      setUsers(usersResult.status === "fulfilled" ? usersResult.value : []);
     } catch (loadError) {
       setError(loadError?.response?.data?.message || "Unable to load application data.");
     } finally {
@@ -264,6 +395,26 @@ function App() {
       [section]: {
         ...current[section],
         [field]: value
+      }
+    }));
+  }
+
+  async function handleFileUpload(section, file, fieldMap) {
+    if (!file) {
+      updateForm(section, fieldMap.name, "");
+      updateForm(section, fieldMap.type, "");
+      updateForm(section, fieldMap.data, "");
+      return;
+    }
+
+    const fileData = await readFileAsDataUrl(file);
+    setForms((current) => ({
+      ...current,
+      [section]: {
+        ...current[section],
+        [fieldMap.name]: file.name,
+        [fieldMap.type]: file.type || "",
+        [fieldMap.data]: fileData
       }
     }));
   }
@@ -361,16 +512,18 @@ function App() {
     logout();
     setCurrentUser(null);
     setDashboard(null);
-    setPlatform(null);
+        setPlatform(null);
     setRoles([]);
+    setUsers([]);
     setIntegrations(null);
-    setForms(initialForms);
-    setEditing({
-      student: null,
-      attendance: null,
-      exam: null,
-      result: null,
-      fee: null,
+        setForms(initialForms);
+        setEditing({
+          student: null,
+          attendance: null,
+          timetable: null,
+          exam: null,
+          result: null,
+          fee: null,
       announcement: null,
       homework: null,
       leave: null
@@ -390,6 +543,7 @@ function App() {
         return (
           <StudentsSection
             students={platform.students}
+            timetable={platform.timetable || []}
             form={forms.student}
             editing={Boolean(editing.student)}
             canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
@@ -416,7 +570,7 @@ function App() {
             students={platform.students || []}
             form={forms.attendance}
             editing={Boolean(editing.attendance)}
-            canManage={["super_admin", "school_admin", "vice_principal", "teacher"].includes(currentUser?.role)}
+            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
             onChange={(field, value) => updateForm("attendance", field, value)}
             onSubmit={() =>
               saveSection("attendance", createAttendanceRecord, updateAttendanceRecord, (payload) => ({
@@ -439,14 +593,20 @@ function App() {
           <ExamsSection
             exams={platform.exams || []}
             results={platform.results || []}
+            timetable={platform.timetable || []}
             form={forms.exam}
             resultForm={forms.result}
+            timetableForm={forms.timetable}
             editingExam={Boolean(editing.exam)}
             editingResult={Boolean(editing.result)}
+            editingTimetable={Boolean(editing.timetable)}
             canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
             canApproveResults={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
             onExamChange={(field, value) => updateForm("exam", field, value)}
             onResultChange={(field, value) => updateForm("result", field, value)}
+            onTimetableChange={(field, value) => updateForm("timetable", field, value)}
+            onTimetableSubmit={() => saveSection("timetable", createTimetableEntry, updateTimetableEntry)}
+            onExamFileChange={(file) => handleFileUpload("exam", file, { name: "fileName", type: "fileType", data: "fileData" })}
             onExamSubmit={() =>
               saveSection("exam", createExam, updateExam, (payload) => ({
                 ...payload,
@@ -465,6 +625,9 @@ function App() {
             onEditExam={(item) => startEdit("exam", item)}
             onDeleteExam={(id) => handleDelete("exam", deleteExam, id)}
             onCancelExam={() => resetForm("exam")}
+            onEditTimetable={(item) => startEdit("timetable", item)}
+            onDeleteTimetable={(id) => handleDelete("timetable", deleteTimetableEntry, id)}
+            onCancelTimetable={() => resetForm("timetable")}
             onEditResult={(item) => startEdit("result", item)}
             onDeleteResult={(id) => handleDelete("result", deleteResult, id)}
             onCancelResult={() => resetForm("result")}
@@ -524,8 +687,9 @@ function App() {
             announcements={platform.announcements}
             form={forms.announcement}
             editing={Boolean(editing.announcement)}
-            canManage={["super_admin", "school_admin", "vice_principal", "teacher"].includes(currentUser?.role)}
+            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
             onChange={(field, value) => updateForm("announcement", field, value)}
+            onFileChange={(file) => handleFileUpload("announcement", file, { name: "documentName", type: "documentType", data: "documentData" })}
             onSubmit={() => saveSection("announcement", createAnnouncement, updateAnnouncement, (payload) => payload)}
             onEdit={(item) => startEdit("announcement", item)}
             onDelete={(id) => handleDelete("announcement", deleteAnnouncement, id)}
@@ -558,7 +722,22 @@ function App() {
           />
         );
       case "settings":
-        return <SettingsSection integrations={integrations} roles={roles} currentUser={welcomeUser} />;
+        return (
+          <SettingsSection
+            integrations={integrations}
+            roles={roles}
+            users={users}
+            currentUser={welcomeUser}
+            onSaveAccess={async (userId, payload) => {
+              const updated = await updateUserAccess(userId, payload);
+              if (updated.id === currentUser?.id) {
+                setCurrentUser(updated);
+                localStorage.setItem("sms_user", JSON.stringify(updated));
+              }
+              await loadAppData();
+            }}
+          />
+        );
       default:
         return <OverviewSection dashboard={dashboard} platform={platform} />;
     }
@@ -906,12 +1085,12 @@ function OnboardingSection({ items }) {
   );
 }
 
-function StudentsSection({ students, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting }) {
+function StudentsSection({ students, timetable, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting }) {
   return (
     <section className="mt-6 space-y-6">
       <TwoColumn
         left={
-          <Panel title="Student Information System" subtitle="Master profiles, guardian links, documents, medical information, and transport data">
+          <Panel title="Student Information System" subtitle="Student profiles, class assignment, fee status, and subject mapping for the school">
             <div className="grid gap-5 lg:grid-cols-2">
               {students.map((student) => (
                 <div key={student.id} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
@@ -933,6 +1112,16 @@ function StudentsSection({ students, form, editing, canManage, onChange, onSubmi
                     <InfoChip icon={Receipt} label="Fee Due" value={currency(student.feesDue)} />
                     <InfoChip icon={FolderKanban} label="Documents" value={`${student.documents} files`} />
                     <InfoChip icon={Bell} label="Medical" value={student.medical} />
+                  </div>
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Subjects For {student.className}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {getSubjectsForClass(student.className, timetable).map((subject) => (
+                        <span key={`${student.id}-${subject}`} className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-brand-blue">
+                          {subject}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1113,26 +1302,35 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
 function ExamsSection({
   exams,
   results,
+  timetable,
   form,
   resultForm,
+  timetableForm,
   editingExam,
   editingResult,
+  editingTimetable,
   canManage,
   canApproveResults,
   onExamChange,
   onResultChange,
+  onTimetableChange,
+  onTimetableSubmit,
+  onExamFileChange,
   onExamSubmit,
   onResultSubmit,
   onEditExam,
   onDeleteExam,
   onCancelExam,
+  onEditTimetable,
+  onDeleteTimetable,
+  onCancelTimetable,
   onEditResult,
   onDeleteResult,
   onCancelResult,
   submitting,
   role
 }) {
-  const viewerMode = role === "parent" || role === "student";
+  const timetableClasses = [...new Set((timetable || []).map((item) => item.className))];
   return (
     <section className="mt-6 space-y-6">
       <TwoColumn
@@ -1146,37 +1344,136 @@ function ExamsSection({
                   subtitle={`${exam.schedule} • Uploaded by ${exam.uploadedBy || "Management"}`}
                   details={[`File: ${exam.fileName || "Not attached"}`, `Hall Tickets: ${exam.hallTickets}`, `Result Status: ${exam.resultStatus}`]}
                   canManage={canManage}
-                  onEdit={() => onEditExam(exam)}
-                  onDelete={() => onDeleteExam(exam.id)}
-                  busy={submitting === "exam"}
-                  actions={
-                    <DownloadLink label="Download Timetable" content={`${exam.name}\n${exam.className}\n${exam.schedule}\n${exam.fileName || "No file name"}`} filename={exam.fileName || `${exam.name}.txt`} />
-                  }
-                />
-              ))}
+                    onEdit={() => onEditExam(exam)}
+                    onDelete={() => onDeleteExam(exam.id)}
+                    busy={submitting === "exam"}
+                    actions={
+                      exam.fileData ? (
+                        <AttachmentDownloadLink
+                          label="Download File"
+                          data={exam.fileData}
+                          filename={exam.fileName || `${exam.name}.pdf`}
+                        />
+                      ) : (
+                        <DownloadLink
+                          label="Download Timetable"
+                          content={`Exam: ${exam.name}\nClass: ${exam.className}\nSchedule: ${exam.schedule}\nExam Date: ${exam.examDate || "-"}\nUploaded By: ${exam.uploadedBy || "Management"}`}
+                          filename={exam.fileName || `${exam.name}.txt`}
+                        />
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            </Panel>
+          }
+          right={
+            <CrudPanel
+              title={editingExam ? "Update Exam Timetable" : "Upload Exam Timetable"}
+              subtitle="Management uploads and updates exam schedules"
+              canManage={canManage}
+              editing={editingExam}
+              onSubmit={onExamSubmit}
+              onCancel={onCancelExam}
+              submitting={submitting === "exam"}
+              submitLabel={editingExam ? "Save Exam" : "Upload Timetable"}
+            >
+              <FormGrid>
+                <Field label="Exam Name" value={form.name} onChange={(value) => onExamChange("name", value)} />
+                <Field label="Class" value={form.className} onChange={(value) => onExamChange("className", value)} />
+                <Field label="Schedule" value={form.schedule} onChange={(value) => onExamChange("schedule", value)} />
+                <Field label="Exam Date" type="date" value={form.examDate} onChange={(value) => onExamChange("examDate", value)} />
+                <Field label="File Name" value={form.fileName} onChange={(value) => onExamChange("fileName", value)} />
+                <FileField label="Upload PDF / Image / DOCX" accept=".pdf,.doc,.docx,image/*" onChange={onExamFileChange} />
+                <SelectField label="Hall Tickets" value={form.hallTickets} options={["Draft", "Ready"]} onChange={(value) => onExamChange("hallTickets", value)} />
+                <SelectField label="Result Status" value={form.resultStatus} options={["Pending", "Processing", "Published"]} onChange={(value) => onExamChange("resultStatus", value)} />
+              </FormGrid>
+            </CrudPanel>
+          }
+        />
+      <TwoColumn
+        left={
+          <Panel title="Weekly Class Timetable" subtitle="Week-wise lecture schedule with downloadable format for each class">
+            <div className="space-y-4">
+              {timetableClasses.map((className) => {
+                const classRows = timetable.filter((item) => item.className === className);
+                return (
+                  <div key={className} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-semibold">{className}</p>
+                        <p className="mt-1 text-sm text-slate-500">Complete weekly lecture plan with all mapped subjects</p>
+                      </div>
+                      <DownloadLink
+                        label="Download Weekly Timetable"
+                        content={buildWeeklyTimetableContent(className, timetable)}
+                        filename={`${className.toLowerCase().replaceAll(" ", "-")}-weekly-timetable.txt`}
+                      />
+                    </div>
+                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                      {weekDays
+                        .filter((day) => classRows.some((item) => item.day === day))
+                        .map((day) => (
+                          <div key={`${className}-${day}`} className="rounded-2xl bg-white p-4">
+                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">{day}</p>
+                            <div className="mt-3 space-y-2 text-sm text-slate-600">
+                              {classRows
+                                .filter((item) => item.day === day)
+                                .map((item) => (
+                                  <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 px-3 py-3">
+                                    <div>
+                                      <p className="font-semibold text-brand-slate">{item.subject}</p>
+                                      <p>{item.period}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p>{item.teacher || "Teacher"}</p>
+                                      <p className="text-slate-400">{item.room || "-"}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Panel>
         }
         right={
           <CrudPanel
-            title={editingExam ? "Update Exam Timetable" : "Upload Exam Timetable"}
-            subtitle="Management uploads and updates exam schedules"
+            title={editingTimetable ? "Edit Weekly Timetable Entry" : "Add Weekly Timetable Entry"}
+            subtitle="Management maintains the school timetable used by teachers and students"
             canManage={canManage}
-            editing={editingExam}
-            onSubmit={onExamSubmit}
-            onCancel={onCancelExam}
-            submitting={submitting === "exam"}
-            submitLabel={editingExam ? "Save Exam" : "Upload Timetable"}
+            editing={editingTimetable}
+            onSubmit={onTimetableSubmit}
+            onCancel={onCancelTimetable}
+            submitting={submitting === "timetable"}
+            submitLabel={editingTimetable ? "Save Timetable Entry" : "Create Timetable Entry"}
           >
             <FormGrid>
-              <Field label="Exam Name" value={form.name} onChange={(value) => onExamChange("name", value)} />
-              <Field label="Class" value={form.className} onChange={(value) => onExamChange("className", value)} />
-              <Field label="Schedule" value={form.schedule} onChange={(value) => onExamChange("schedule", value)} />
-              <Field label="Exam Date" type="date" value={form.examDate} onChange={(value) => onExamChange("examDate", value)} />
-              <Field label="File Name" value={form.fileName} onChange={(value) => onExamChange("fileName", value)} />
-              <SelectField label="Hall Tickets" value={form.hallTickets} options={["Draft", "Ready"]} onChange={(value) => onExamChange("hallTickets", value)} />
-              <SelectField label="Result Status" value={form.resultStatus} options={["Pending", "Processing", "Published"]} onChange={(value) => onExamChange("resultStatus", value)} />
+              <Field label="Class" value={timetableForm.className} onChange={(value) => onTimetableChange("className", value)} />
+              <SelectField label="Day" value={timetableForm.day} options={weekDays.slice(0, 5)} onChange={(value) => onTimetableChange("day", value)} />
+              <Field label="Period" value={timetableForm.period} onChange={(value) => onTimetableChange("period", value)} />
+              <Field label="Subject" value={timetableForm.subject} onChange={(value) => onTimetableChange("subject", value)} />
+              <Field label="Teacher" value={timetableForm.teacher} onChange={(value) => onTimetableChange("teacher", value)} />
+              <Field label="Room" value={timetableForm.room} onChange={(value) => onTimetableChange("room", value)} />
             </FormGrid>
+            <div className="mt-5 space-y-3">
+              {(timetable || []).map((item) => (
+                <RecordCard
+                  key={item.id}
+                  title={`${item.className} • ${item.day}`}
+                  subtitle={`${item.subject} • ${item.period}`}
+                  details={[`Teacher: ${item.teacher || "-"}`, `Room: ${item.room || "-"}`]}
+                  canManage={canManage}
+                  onEdit={() => onEditTimetable(item)}
+                  onDelete={() => onDeleteTimetable(item.id)}
+                  busy={submitting === "timetable"}
+                />
+              ))}
+            </div>
           </CrudPanel>
         }
       />
@@ -1229,13 +1526,14 @@ function ExamsSection({
 
 function FeesSection({ fees, stats, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
   const teacherMode = role === "teacher";
+  const totalStudents = new Set((fees || []).map((item) => item.studentName).filter(Boolean)).size;
   return (
     <section className="mt-6 space-y-6">
       <Panel title={teacherMode ? "Student Fee Status" : "Fee Management"} subtitle={teacherMode ? "Teachers can view payment progress of their class students" : "Revenue, collections, dues, and receipt-ready records"}>
         <div className="grid gap-4 md:grid-cols-3">
-          <KpiTile label="Collected" value={currency(stats.feesCollected)} hint="Online + offline collections" />
-          <KpiTile label="Pending" value={currency(stats.feesPending)} hint="Includes overdue balances" />
-          <KpiTile label="Coverage" value={stats.feeCollectionCoverage} hint="Schools collecting via platform" />
+          <KpiTile label={teacherMode ? "Students In Ledger" : "Collected"} value={teacherMode ? String(totalStudents) : currency(stats.feesCollected)} hint={teacherMode ? "Students mapped to your class" : "Online + offline collections"} />
+          <KpiTile label={teacherMode ? "Collected" : "Pending"} value={teacherMode ? currency((fees || []).reduce((sum, item) => sum + Number(item.paid || 0), 0)) : currency(stats.feesPending)} hint={teacherMode ? "Paid amount for your class" : "Includes overdue balances"} />
+          <KpiTile label={teacherMode ? "Remaining" : "Coverage"} value={teacherMode ? currency((fees || []).reduce((sum, item) => sum + Number(item.pending || 0), 0)) : stats.feeCollectionCoverage} hint={teacherMode ? "Outstanding fee amount" : "Schools collecting via platform"} />
         </div>
       </Panel>
       {teacherMode ? (
@@ -1247,6 +1545,14 @@ function FeesSection({ fees, stats, form, editing, canManage, onChange, onSubmit
                 title={`${item.studentName || "Student"} • ${item.category}`}
                 subtitle={`${item.className} • Due ${item.dueDate}`}
                 details={[`Amount: ${currency(item.amount)}`, `Paid: ${currency(item.paid)}`, `Pending: ${currency(item.pending)}`, `Status: ${item.status}`]}
+                actions={
+                  <DownloadLink
+                    label="Fee Receipt"
+                    content={buildReceiptContent(item)}
+                    filename={`${(item.studentName || "student").toLowerCase().replaceAll(" ", "-")}-fee-receipt.html`}
+                    mimeType="text/html"
+                  />
+                }
               />
             ))}
           </div>
@@ -1266,6 +1572,14 @@ function FeesSection({ fees, stats, form, editing, canManage, onChange, onSubmit
                     onEdit={() => onEdit(item)}
                     onDelete={() => onDelete(item.id)}
                     busy={submitting}
+                    actions={
+                      <DownloadLink
+                        label="Fee Receipt"
+                        content={buildReceiptContent(item)}
+                        filename={`${(item.studentName || "student").toLowerCase().replaceAll(" ", "-")}-fee-receipt.html`}
+                        mimeType="text/html"
+                      />
+                    }
                   />
                 ))}
               </div>
@@ -1362,27 +1676,28 @@ function HomeworkSection({ homework, form, editing, canManage, onChange, onSubmi
   );
 }
 
-function CommunicationSection({ announcements, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
+function CommunicationSection({ announcements, form, editing, canManage, onChange, onFileChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
   const viewerMode = role === "parent" || role === "student";
   return (
     <section className="mt-6 space-y-6">
       {viewerMode ? (
-        <Panel title="School Notices" subtitle="Circulars and announcements shared by the school">
-          <div className="grid gap-4 lg:grid-cols-2">
-            {announcements.map((item) => (
-              <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
-                <span className="rounded-full bg-brand-navy px-3 py-1 text-xs font-semibold text-white">{item.status}</span>
-                <p className="mt-4 text-xl font-semibold">{item.title}</p>
-                <p className="mt-2 text-sm text-slate-500">{item.audience} • {item.date}</p>
-                <p className="mt-4 text-sm leading-6 text-slate-600">{item.content}</p>
+        <Panel title="School Circulars" subtitle="Important school-wide notices like holidays, urgent closures, and due reminders">
+              <div className="grid gap-4 lg:grid-cols-2">
+                {announcements.map((item) => (
+                  <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
+                    <span className="rounded-full bg-brand-navy px-3 py-1 text-xs font-semibold text-white">{item.status}</span>
+                    <p className="mt-4 text-xl font-semibold">{item.title}</p>
+                    <p className="mt-2 text-sm text-slate-500">{item.audience} • {item.date}</p>
+                    {item.documentName ? <p className="mt-2 text-sm font-medium text-brand-blue">Document: {item.documentName}</p> : null}
+                    <p className="mt-4 text-sm leading-6 text-slate-600">{item.content}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </Panel>
+            </Panel>
       ) : (
         <TwoColumn
           left={
-            <Panel title="Notification & Communication" subtitle="Circulars, announcements, and delivery workflows">
+            <Panel title="Circular Module" subtitle="Create and manage school circulars for holidays, urgent closures, and important updates">
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -1392,7 +1707,23 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
                     </div>
                     <p className="mt-4 text-xl font-semibold">{item.title}</p>
                     <p className="mt-2 text-sm text-slate-500">{item.audience} • {item.date}</p>
+                    {item.documentName ? <p className="mt-2 text-sm font-medium text-brand-blue">Document: {item.documentName}</p> : null}
                     <p className="mt-4 text-sm leading-6 text-slate-600">{item.content}</p>
+                    <div className="mt-4">
+                      {item.documentData ? (
+                        <AttachmentDownloadLink
+                          label={item.documentName ? "Download Uploaded Document" : "Download Attachment"}
+                          data={item.documentData}
+                          filename={item.documentName || `${item.title.toLowerCase().replaceAll(" ", "-")}.txt`}
+                        />
+                      ) : (
+                        <DownloadLink
+                          label={item.documentName ? "Download Notice Document" : "Download Notice"}
+                          content={buildAnnouncementDocument(item)}
+                          filename={item.documentName || `${item.title.toLowerCase().replaceAll(" ", "-")}.txt`}
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1400,21 +1731,23 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
           }
           right={
             <CrudPanel
-              title={editing ? "Edit Announcement" : "Create Announcement"}
-              subtitle="Publish a circular or notice for web and app users"
+              title={editing ? "Edit Circular" : "Create Circular"}
+              subtitle="Publish a school circular for all required audiences"
               canManage={canManage}
               editing={editing}
               onSubmit={onSubmit}
               onCancel={onCancel}
               submitting={submitting}
-              submitLabel={editing ? "Save Announcement" : "Publish Announcement"}
+              submitLabel={editing ? "Save Circular" : "Publish Circular"}
             >
               <FormGrid>
                 <Field label="Title" value={form.title} onChange={(value) => onChange("title", value)} />
                 <Field label="Audience" value={form.audience} onChange={(value) => onChange("audience", value)} />
-                <SelectField label="Type" value={form.type} options={["Circular", "Announcement", "Reminder"]} onChange={(value) => onChange("type", value)} />
+                <SelectField label="Type" value={form.type} options={["Holiday Circular", "Urgent Closure", "Fee Due Reminder", "General Circular"]} onChange={(value) => onChange("type", value)} />
                 <Field label="Date" type="date" value={form.date} onChange={(value) => onChange("date", value)} />
-                <Field label="Content" value={form.content} onChange={(value) => onChange("content", value)} />
+                <Field label="Document Name" value={form.documentName} onChange={(value) => onChange("documentName", value)} />
+                <FileField label="Upload PDF / Image / DOCX" accept=".pdf,.doc,.docx,image/*" onChange={onFileChange} />
+                <TextAreaField label="Content" value={form.content} onChange={(value) => onChange("content", value)} />
                 <SelectField label="Status" value={form.status} options={["Published", "Draft"]} onChange={(value) => onChange("status", value)} />
               </FormGrid>
             </CrudPanel>
@@ -1573,8 +1906,9 @@ function LeavesSection({ leaves, form, editing, canManage, onChange, onSubmit, o
   );
 }
 
-function SettingsSection({ integrations, roles, currentUser }) {
+function SettingsSection({ integrations, roles, users, currentUser, onSaveAccess }) {
   const adminRole = ["super_admin", "school_admin"].includes(currentUser.role);
+  const principalRole = currentUser.role === "school_admin";
   return (
     <section className="mt-6 space-y-6">
       {adminRole ? (
@@ -1603,7 +1937,17 @@ function SettingsSection({ integrations, roles, currentUser }) {
           </Panel>
         }
         right={
-          adminRole ? (
+          principalRole ? (
+            <Panel title="Access & Responsibilities" subtitle="Only the principal can assign module access and responsibilities to teachers and management">
+              <div className="space-y-4">
+                {users
+                  .filter((user) => user.role !== "school_admin")
+                  .map((user) => (
+                    <UserAccessCard key={user.id} user={user} onSave={onSaveAccess} />
+                  ))}
+              </div>
+            </Panel>
+          ) : adminRole ? (
             <Panel title="Access Review" subtitle="High-level role summary for administrative users">
               <div className="grid gap-3 md:grid-cols-2">
                 {roles.map((role) => (
@@ -1624,6 +1968,71 @@ function SettingsSection({ integrations, roles, currentUser }) {
         }
       />
     </section>
+  );
+}
+
+function UserAccessCard({ user, onSave }) {
+  const [permissions, setPermissions] = useState(user.accessPermissions || []);
+  const [responsibilities, setResponsibilities] = useState(user.responsibilities || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setPermissions(user.accessPermissions || []);
+    setResponsibilities(user.responsibilities || "");
+  }, [user]);
+
+  const togglePermission = (permission) => {
+    setPermissions((current) =>
+      current.includes(permission) ? current.filter((item) => item !== permission) : [...current, permission]
+    );
+  };
+
+  return (
+    <div className="rounded-[1.75rem] bg-slate-50 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-lg font-semibold">{user.name}</p>
+          <p className="text-sm text-slate-500">{user.email}</p>
+          <p className="mt-1 text-sm font-medium text-brand-blue">{formatRoleLabel(user.role)}</p>
+        </div>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await onSave(user.id, { accessPermissions: permissions, responsibilities });
+            } finally {
+              setSaving(false);
+            }
+          }}
+          className="rounded-2xl bg-brand-navy px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-blue disabled:opacity-60"
+        >
+          {saving ? "Saving..." : "Save Access"}
+        </button>
+      </div>
+      <div className="mt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Module Access</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {moduleAccessOptions.map((option) => {
+            const active = permissions.includes(option.id);
+            return (
+              <button
+                key={`${user.id}-${option.id}`}
+                type="button"
+                onClick={() => togglePermission(option.id)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${active ? "bg-brand-navy text-white" : "bg-white text-slate-600"}`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-5">
+        <TextAreaField label="Responsibilities" value={responsibilities} onChange={setResponsibilities} />
+      </div>
+    </div>
   );
 }
 
@@ -1750,20 +2159,21 @@ function StudentDashboard({ platform }) {
 }
 
 function TeacherDashboard({ platform }) {
+  const lectures = (platform.timetable || []).slice(0, 6);
   return (
     <section className="mt-6 space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={GraduationCap} label="Exam Results" value={String((platform.results || []).length)} color="bg-blue-100 text-blue-700" />
         <StatCard icon={BookOpen} label="Homework" value={String((platform.homework || []).length)} color="bg-amber-100 text-amber-700" />
         <StatCard icon={Megaphone} label="Notifications" value={String((platform.announcements || []).length)} color="bg-emerald-100 text-emerald-700" />
-        <StatCard icon={ClipboardList} label="Leave Requests" value={String((platform.leaves || []).length)} color="bg-rose-100 text-rose-700" />
+        <StatCard icon={ClipboardList} label="Lectures" value={String((platform.timetable || []).length)} color="bg-rose-100 text-rose-700" />
       </div>
       <TwoColumn
         left={
-          <Panel title="Exam Snapshot" subtitle="Current exam and result summary">
+          <Panel title="My Weekly Lectures" subtitle="Scheduled lectures for your assigned class timetable">
             <SimpleTable
-              columns={["Exam", "Class", "Schedule", "Status"]}
-              rows={(platform.exams || []).slice(0, 5).map((exam) => [exam.name, exam.className, exam.schedule, exam.resultStatus])}
+              columns={["Day", "Period", "Subject", "Room"]}
+              rows={lectures.map((entry) => [entry.day, entry.period, entry.subject, entry.room || "-"])}
             />
           </Panel>
         }
@@ -1773,7 +2183,7 @@ function TeacherDashboard({ platform }) {
               <KpiTile label="Results" value={String((platform.results || []).length)} hint="Marks and grades" />
               <KpiTile label="Homework" value={String((platform.homework || []).length)} hint="Assign and review work" />
               <KpiTile label="Notifications" value={String((platform.announcements || []).length)} hint="Circulars and notices" />
-              <KpiTile label="Leave" value={String((platform.leaves || []).length)} hint="Apply and track status" />
+              <KpiTile label="Student Leaves" value={String((platform.leaves || []).filter((item) => item.role === "Student").length)} hint="Applications visible to teachers" />
             </div>
           </Panel>
         }
@@ -2039,11 +2449,24 @@ function ActionButtons({ canManage, onEdit, onDelete, busy }) {
   );
 }
 
-function DownloadLink({ label, content, filename }) {
-  const href = `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
+function DownloadLink({ label, content, filename, mimeType = "text/plain" }) {
+  const href = `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`;
   return (
     <a
       href={href}
+      download={filename}
+      className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium text-brand-blue transition hover:bg-brand-paper"
+    >
+      <Download size={16} />
+      {label}
+    </a>
+  );
+}
+
+function AttachmentDownloadLink({ label, data, filename }) {
+  return (
+    <a
+      href={data}
       download={filename}
       className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium text-brand-blue transition hover:bg-brand-paper"
     >
@@ -2088,6 +2511,34 @@ function SelectField({ label, value, options, onChange }) {
           </option>
         ))}
       </select>
+    </label>
+  );
+}
+
+function FileField({ label, accept, onChange }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-slate-600">{label}</span>
+      <input
+        type="file"
+        accept={accept}
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-brand-paper file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-blue focus:border-brand-blue"
+      />
+    </label>
+  );
+}
+
+function TextAreaField({ label, value, onChange }) {
+  return (
+    <label className="block md:col-span-2">
+      <span className="mb-2 block text-sm font-medium text-slate-600">{label}</span>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={5}
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-brand-blue"
+      />
     </label>
   );
 }
@@ -2190,6 +2641,15 @@ function mapItemToForm(section, item) {
         late: String(item.late ?? ""),
         markedBy: item.markedBy || ""
       };
+    case "timetable":
+      return {
+        className: item.className || "",
+        day: item.day || "Monday",
+        period: item.period || "",
+        subject: item.subject || "",
+        teacher: item.teacher || "",
+        room: item.room || ""
+      };
     case "exam":
       return {
         name: item.name || "",
@@ -2198,6 +2658,8 @@ function mapItemToForm(section, item) {
         examDate: item.examDate || "",
         uploadedBy: item.uploadedBy || "",
         fileName: item.fileName || "",
+        fileType: item.fileType || "",
+        fileData: item.fileData || "",
         hallTickets: item.hallTickets || "Draft",
         resultStatus: item.resultStatus || "Pending"
       };
@@ -2229,6 +2691,9 @@ function mapItemToForm(section, item) {
         audience: item.audience || "",
         type: item.type || "Circular",
         date: item.date || "",
+        documentName: item.documentName || "",
+        documentType: item.documentType || "",
+        documentData: item.documentData || "",
         content: item.content || "",
         status: item.status || "Published"
       };

@@ -12,7 +12,7 @@ let dbStatus = "disconnected";
 
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin: true,
     credentials: true
   })
 );

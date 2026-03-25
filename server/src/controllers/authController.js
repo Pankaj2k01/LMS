@@ -28,6 +28,8 @@ export async function loginController(req, res) {
       name: user.name,
       email: user.email,
       role: user.role,
+      accessPermissions: user.accessPermissions || [],
+      responsibilities: user.responsibilities || "",
       phone: user.phone,
       campus: user.campus,
       avatar: user.avatar
@@ -47,6 +49,8 @@ export async function meController(req, res) {
     name: user.name,
     email: user.email,
     role: user.role,
+    accessPermissions: user.accessPermissions || [],
+    responsibilities: user.responsibilities || "",
     phone: user.phone,
     campus: user.campus,
     avatar: user.avatar
