@@ -16,6 +16,65 @@ export function createApiRouter(getDbStatus) {
   router.use("/auth", authRoutes);
   router.use("/", createPlatformRoutes(getDbStatus));
 
+  router.put(
+    "/fees/:id/pay",
+    authMiddleware,
+    requireRoles("student"),
+    withAsync(async (req, res) => {
+      const fee = await repositories.fees.getById(req.params.id);
+      if (!fee) {
+        return res.status(404).json({ message: "Fee record not found" });
+      }
+
+      const paymentAmount = Number(req.body.amount ?? fee.pending ?? 0);
+      if (paymentAmount <= 0) {
+        return res.status(400).json({ message: "No pending fee amount to pay." });
+      }
+
+      const nextPaid = Number(fee.paid || 0) + paymentAmount;
+      const nextPending = Math.max(Number(fee.amount || 0) - nextPaid, 0);
+      const updated = await repositories.fees.update(req.params.id, {
+        paid: nextPaid,
+        pending: nextPending,
+        status: nextPending === 0 ? "Paid" : "Partial",
+        lastPaymentDate: new Date().toISOString().slice(0, 10),
+        receiptNo: fee.receiptNo || `RCPT-${Date.now()}`
+      });
+
+      return res.json(updated);
+    })
+  );
+
+  router.put(
+    "/homework/:id/submit",
+    authMiddleware,
+    requireRoles("student"),
+    withAsync(async (req, res) => {
+      const homework = await repositories.homework.getById(req.params.id);
+      if (!homework) {
+        return res.status(404).json({ message: "Homework not found" });
+      }
+
+      if (homework.mode !== "Online") {
+        return res.status(400).json({ message: "Only online homework can be submitted from the student portal." });
+      }
+
+      if (!req.body.studentSubmission || !req.body.studentSubmissionData) {
+        return res.status(400).json({ message: "Please upload a homework file before submitting." });
+      }
+
+      const updated = await repositories.homework.update(req.params.id, {
+        studentSubmission: req.body.studentSubmission,
+        studentSubmissionType: req.body.studentSubmissionType || "",
+        studentSubmissionData: req.body.studentSubmissionData,
+        completionStatus: "Pending Review",
+        submissions: Number(homework.submissions || 0) + 1
+      });
+
+      return res.json(updated);
+    })
+  );
+
   router.use(
     "/tenants",
     createCrudRouter({
@@ -60,30 +119,56 @@ export function createApiRouter(getDbStatus) {
       buildRecord: (body) => ({
         id: `stu-${Date.now()}`,
         admissionNo: body.admissionNo,
+        applicationNo: body.applicationNo || "",
         name: body.name,
         className: body.className,
         parentName: body.parentName,
+        admissionDate: body.admissionDate || "",
+        academicHistory: body.academicHistory || "",
         attendance: numberValue(body.attendance),
         feesDue: numberValue(body.feesDue),
         performance: body.performance || "Pending",
         transportRoute: body.transportRoute || "Not assigned",
+        busStop: body.busStop || "",
+        busTrackingStatus: body.busTrackingStatus || "",
         medical: body.medical || "Not updated",
-        documents: numberValue(body.documents),
+        bloodGroup: body.bloodGroup || "",
+        emergencyContact: body.emergencyContact || "",
+        siblingName: body.siblingName || "",
+        siblingClass: body.siblingClass || "",
+        tcIssued: body.tcIssued || "No",
+        alumniStatus: body.alumniStatus || "Active",
+        promotedTo: body.promotedTo || "",
+        documentUploads: Array.isArray(body.documentUploads) ? body.documentUploads : [],
+        documents: numberValue(body.documents ?? (Array.isArray(body.documentUploads) ? body.documentUploads.length : 0)),
         avatar:
           body.avatar ||
           "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=300&q=80"
       }),
       buildUpdates: (body) => ({
         admissionNo: body.admissionNo,
+        applicationNo: body.applicationNo || "",
         name: body.name,
         className: body.className,
         parentName: body.parentName,
+        admissionDate: body.admissionDate || "",
+        academicHistory: body.academicHistory || "",
         attendance: numberValue(body.attendance),
         feesDue: numberValue(body.feesDue),
         performance: body.performance || "Pending",
         transportRoute: body.transportRoute || "Not assigned",
+        busStop: body.busStop || "",
+        busTrackingStatus: body.busTrackingStatus || "",
         medical: body.medical || "Not updated",
-        documents: numberValue(body.documents),
+        bloodGroup: body.bloodGroup || "",
+        emergencyContact: body.emergencyContact || "",
+        siblingName: body.siblingName || "",
+        siblingClass: body.siblingClass || "",
+        tcIssued: body.tcIssued || "No",
+        alumniStatus: body.alumniStatus || "Active",
+        promotedTo: body.promotedTo || "",
+        documentUploads: Array.isArray(body.documentUploads) ? body.documentUploads : [],
+        documents: numberValue(body.documents ?? (Array.isArray(body.documentUploads) ? body.documentUploads.length : 0)),
         avatar:
           body.avatar ||
           "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=300&q=80"
@@ -273,13 +358,14 @@ export function createApiRouter(getDbStatus) {
     "/fees",
     createCrudRouter({
       repository: repositories.fees,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
+      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher", "student"],
       createRoles: ["super_admin", "school_admin", "vice_principal"],
       updateRoles: ["super_admin", "school_admin", "vice_principal"],
       deleteRoles: ["super_admin", "school_admin"],
       requiredFields: ["studentName", "category", "className", "dueDate"],
       buildRecord: (body) => ({
         id: `fee-${Date.now()}`,
+        studentId: body.studentId || "",
         studentName: body.studentName || "",
         category: body.category,
         className: body.className,
@@ -287,9 +373,12 @@ export function createApiRouter(getDbStatus) {
         amount: numberValue(body.amount),
         paid: numberValue(body.paid),
         pending: numberValue(body.pending ?? body.amount),
-        status: body.status || "Pending"
+        status: body.status || "Pending",
+        receiptNo: body.receiptNo || `RCPT-${Date.now()}`,
+        lastPaymentDate: body.lastPaymentDate || ""
       }),
       buildUpdates: (body) => ({
+        studentId: body.studentId || "",
         studentName: body.studentName || "",
         category: body.category,
         className: body.className,
@@ -297,7 +386,9 @@ export function createApiRouter(getDbStatus) {
         amount: numberValue(body.amount),
         paid: numberValue(body.paid),
         pending: numberValue(body.pending ?? body.amount),
-        status: body.status || "Pending"
+        status: body.status || "Pending",
+        receiptNo: body.receiptNo || "",
+        lastPaymentDate: body.lastPaymentDate || ""
       })
     })
   );
@@ -347,7 +438,10 @@ export function createApiRouter(getDbStatus) {
     "/homework",
     createCrudRouter({
       repository: repositories.homework,
-      roles: ["school_admin", "vice_principal", "teacher", "super_admin"],
+      listRoles: ["school_admin", "vice_principal", "teacher", "super_admin", "student"],
+      createRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
+      updateRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
+      deleteRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
       requiredFields: ["subject", "className", "title", "dueDate"],
       buildRecord: (body) => ({
         id: `hw-${Date.now()}`,
@@ -356,7 +450,12 @@ export function createApiRouter(getDbStatus) {
         title: body.title,
         dueDate: body.dueDate,
         mode: body.mode || "Offline",
+        attachmentName: body.attachmentName || "",
+        attachmentType: body.attachmentType || "",
+        attachmentData: body.attachmentData || "",
         studentSubmission: body.studentSubmission || "",
+        studentSubmissionType: body.studentSubmissionType || "",
+        studentSubmissionData: body.studentSubmissionData || "",
         completionStatus: body.completionStatus || "Pending",
         submissions: numberValue(body.submissions),
         totalStudents: numberValue(body.totalStudents),
@@ -368,7 +467,12 @@ export function createApiRouter(getDbStatus) {
         title: body.title,
         dueDate: body.dueDate,
         mode: body.mode || "Offline",
+        attachmentName: body.attachmentName || "",
+        attachmentType: body.attachmentType || "",
+        attachmentData: body.attachmentData || "",
         studentSubmission: body.studentSubmission || "",
+        studentSubmissionType: body.studentSubmissionType || "",
+        studentSubmissionData: body.studentSubmissionData || "",
         completionStatus: body.completionStatus || "Pending",
         submissions: numberValue(body.submissions),
         totalStudents: numberValue(body.totalStudents),

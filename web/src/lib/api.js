@@ -95,6 +95,8 @@ export const updateFee = (id, payload) => updateResource(`/fees/${id}`, payload)
 export const updateAnnouncement = (id, payload) => updateResource(`/announcements/${id}`, payload);
 export const updateHomework = (id, payload) => updateResource(`/homework/${id}`, payload);
 export const updateLeave = (id, payload) => updateResource(`/leaves/${id}`, payload);
+export const payFee = (id, payload = {}) => updateResource(`/fees/${id}/pay`, payload);
+export const submitHomework = (id, payload) => updateResource(`/homework/${id}/submit`, payload);
 export const deleteTenant = (id) => deleteResource(`/tenants/${id}`);
 export const deleteStudent = (id) => deleteResource(`/students/${id}`);
 export const deleteAttendanceRecord = (id) => deleteResource(`/attendance-records/${id}`);

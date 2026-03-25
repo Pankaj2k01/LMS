@@ -22,14 +22,39 @@ const studentSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
     admissionNo: { type: String, required: true },
+    applicationNo: { type: String, default: "" },
     name: { type: String, required: true },
     className: { type: String, required: true },
     parentName: { type: String, required: true },
+    admissionDate: { type: String, default: "" },
+    academicHistory: { type: String, default: "" },
     attendance: { type: Number, default: 0 },
     feesDue: { type: Number, default: 0 },
     performance: { type: String, default: "Pending" },
     transportRoute: { type: String, default: "Not assigned" },
+    busStop: { type: String, default: "" },
+    busTrackingStatus: { type: String, default: "" },
     medical: { type: String, default: "Not updated" },
+    bloodGroup: { type: String, default: "" },
+    emergencyContact: { type: String, default: "" },
+    siblingName: { type: String, default: "" },
+    siblingClass: { type: String, default: "" },
+    tcIssued: { type: String, default: "No" },
+    alumniStatus: { type: String, default: "Active" },
+    promotedTo: { type: String, default: "" },
+    documentUploads: {
+      type: [
+        new Schema(
+          {
+            name: { type: String, default: "" },
+            type: { type: String, default: "" },
+            data: { type: String, default: "" }
+          },
+          { _id: false }
+        )
+      ],
+      default: []
+    },
     documents: { type: Number, default: 0 },
     avatar: { type: String }
   },
@@ -53,6 +78,7 @@ const staffSchema = new Schema(
 const feeSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
+    studentId: { type: String, default: "" },
     studentName: { type: String, default: "" },
     category: { type: String, required: true },
     className: { type: String, required: true },
@@ -60,7 +86,9 @@ const feeSchema = new Schema(
     amount: { type: Number, default: 0 },
     paid: { type: Number, default: 0 },
     pending: { type: Number, default: 0 },
-    status: { type: String, default: "Pending" }
+    status: { type: String, default: "Pending" },
+    receiptNo: { type: String, default: "" },
+    lastPaymentDate: { type: String, default: "" }
   },
   { timestamps: true }
 );
@@ -92,7 +120,12 @@ const homeworkSchema = new Schema(
     title: { type: String, required: true },
     dueDate: { type: String, required: true },
     mode: { type: String, default: "Offline" },
+    attachmentName: { type: String, default: "" },
+    attachmentType: { type: String, default: "" },
+    attachmentData: { type: String, default: "" },
     studentSubmission: { type: String, default: "" },
+    studentSubmissionType: { type: String, default: "" },
+    studentSubmissionData: { type: String, default: "" },
     completionStatus: { type: String, default: "Pending" },
     submissions: { type: Number, default: 0 },
     totalStudents: { type: Number, default: 0 },
@@ -179,6 +212,7 @@ const userSchema = new Schema(
     email: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
     role: { type: String, required: true },
+    linkedStudentId: { type: String, default: "" },
     accessPermissions: { type: [String], default: [] },
     responsibilities: { type: String, default: "" },
     phone: { type: String, default: "" },

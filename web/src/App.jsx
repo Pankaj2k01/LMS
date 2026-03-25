@@ -28,6 +28,7 @@ import {
   SquareLibrary,
   Ticket,
   Trash2,
+  Upload,
   UserSquare2,
   Users,
   X
@@ -60,6 +61,8 @@ import {
   fetchUsers,
   login,
   logout,
+  payFee,
+  submitHomework,
   updateAnnouncement,
   updateAttendanceRecord,
   updateExam,
@@ -79,7 +82,7 @@ const navigation = [
   { id: "exams", label: "Exams & Results", icon: GraduationCap },
   { id: "fees", label: "Fee Management", icon: CreditCard },
   { id: "homework", label: "Homework", icon: BookOpen },
-  { id: "communication", label: "Circulars", icon: Megaphone },
+  { id: "communication", label: "Notifications", icon: Megaphone },
   { id: "leave", label: "Leave Applications", icon: ClipboardList },
   { id: "settings", label: "Settings", icon: Settings }
 ];
@@ -90,7 +93,7 @@ const moduleAccessOptions = [
   { id: "exams", label: "Exams & Results" },
   { id: "fees", label: "Fee Management" },
   { id: "homework", label: "Homework" },
-  { id: "communication", label: "Circulars" },
+  { id: "communication", label: "Notifications" },
   { id: "leave", label: "Leave Applications" }
 ];
 
@@ -110,13 +113,13 @@ const roleTabs = {
   accountant: ["settings"],
   librarian: ["settings"],
   parent: ["settings"],
-  student: ["settings"],
+  student: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
   transport_staff: ["settings"]
 };
 
 const loginNotes = [
   "This release is limited to management and teacher workflows.",
-  "Included modules: Results & Exams, Leave, Fees, Homework, and Circulars.",
+  "Included modules: Results & Exams, Leave, Fees, Homework, and Notifications.",
   "Secure JWT authentication with MongoDB-backed accounts."
 ];
 
@@ -135,7 +138,31 @@ const schoolStats = [
 ];
 
 const initialForms = {
-  student: { name: "", admissionNo: "", className: "", parentName: "", feesDue: "", transportRoute: "", medical: "", attendance: "", performance: "Pending", documents: "" },
+  student: {
+    name: "",
+    admissionNo: "",
+    applicationNo: "",
+    className: "",
+    parentName: "",
+    admissionDate: "",
+    academicHistory: "",
+    feesDue: "",
+    transportRoute: "",
+    busStop: "",
+    busTrackingStatus: "",
+    medical: "",
+    bloodGroup: "",
+    emergencyContact: "",
+    siblingName: "",
+    siblingClass: "",
+    tcIssued: "No",
+    alumniStatus: "Active",
+    promotedTo: "",
+    attendance: "",
+    performance: "Pending",
+    documents: "",
+    documentUploads: []
+  },
   attendance: { className: "", date: "", present: "", absent: "", late: "", markedBy: "" },
   timetable: { className: "", day: "Monday", period: "", subject: "", teacher: "", room: "" },
   exam: { name: "", className: "", schedule: "", examDate: "", uploadedBy: "", fileName: "", fileType: "", fileData: "", hallTickets: "Draft", resultStatus: "Pending" },
@@ -155,7 +182,23 @@ const initialForms = {
     content: "",
     status: "Published"
   },
-  homework: { subject: "", className: "", title: "", dueDate: "", mode: "Offline", studentSubmission: "", completionStatus: "Pending", submissions: "", totalStudents: "", status: "Active" },
+  homework: {
+    subject: "",
+    className: "",
+    title: "",
+    dueDate: "",
+    mode: "Offline",
+    attachmentName: "",
+    attachmentType: "",
+    attachmentData: "",
+    studentSubmission: "",
+    studentSubmissionType: "",
+    studentSubmissionData: "",
+    completionStatus: "Pending",
+    submissions: "",
+    totalStudents: "",
+    status: "Active"
+  },
   leave: { applicant: "", role: "", from: "", to: "", reason: "", status: "Pending" }
 };
 
@@ -207,7 +250,7 @@ const getPageMeta = (activeTab) => {
     exams: { title: "Examinations", subtitle: "Exam schedules, result status, and academic performance." },
     fees: { title: "Fee Management", subtitle: "Collection, dues, receipts, and payment status." },
     homework: { title: "Homework", subtitle: "Assignments, due dates, and submission tracking." },
-  communication: { title: "Circulars", subtitle: "Broadcast school circulars such as holidays, urgency notices, closures, and due reminders." },
+  communication: { title: "Notifications", subtitle: "Broadcast circulars, announcements, and notices." },
     leave: { title: "Leave", subtitle: "Leave requests, approvals, and status tracking." },
     settings: { title: "Settings", subtitle: "Account access and system configuration." }
   };
@@ -250,7 +293,7 @@ function buildReceiptContent(fee) {
       </div>
       <div class="section">
         <table>
-          <tr><td>Receipt No.</td><td>${fee.id}</td></tr>
+          <tr><td>Receipt No.</td><td>${fee.receiptNo || fee.id}</td></tr>
           <tr><td>Student Name</td><td>${fee.studentName || "Student"}</td></tr>
           <tr><td>Class / Section</td><td>${fee.className}</td></tr>
           <tr><td>Fee Category</td><td>${fee.category}</td></tr>
@@ -258,6 +301,7 @@ function buildReceiptContent(fee) {
           <tr><td>Paid Amount</td><td>${currency(fee.paid)}</td></tr>
           <tr><td>Pending Amount</td><td>${currency(fee.pending)}</td></tr>
           <tr><td>Due Date</td><td>${fee.dueDate}</td></tr>
+          <tr><td>Last Payment Date</td><td>${fee.lastPaymentDate || "-"}</td></tr>
           <tr><td>Status</td><td><span class="status">${fee.status}</span></td></tr>
           <tr><td>Generated On</td><td>${new Date().toLocaleDateString("en-IN")}</td></tr>
         </table>
@@ -309,6 +353,17 @@ async function readFileAsDataUrl(file) {
     reader.onerror = () => reject(new Error("Unable to read file"));
     reader.readAsDataURL(file);
   });
+}
+
+async function readFilesAsAttachmentList(fileList) {
+  const files = Array.from(fileList || []);
+  return Promise.all(
+    files.map(async (file) => ({
+      name: file.name,
+      type: file.type || "",
+      data: await readFileAsDataUrl(file)
+    }))
+  );
 }
 
 function App() {
@@ -442,6 +497,18 @@ function App() {
     }));
   }
 
+  async function handleMultipleFileUpload(section, files, fieldName) {
+    const attachments = await readFilesAsAttachmentList(files);
+    setForms((current) => ({
+      ...current,
+      [section]: {
+        ...current[section],
+        [fieldName]: attachments,
+        documents: String(attachments.length)
+      }
+    }));
+  }
+
   function resetForm(section) {
     setForms((current) => ({
       ...current,
@@ -567,16 +634,19 @@ function App() {
           <StudentsSection
             students={platform.students}
             timetable={platform.timetable || []}
+            role={currentUser?.role}
             form={forms.student}
             editing={Boolean(editing.student)}
             canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
             onChange={(field, value) => updateForm("student", field, value)}
+            onDocumentUpload={(files) => handleMultipleFileUpload("student", files, "documentUploads")}
             onSubmit={() =>
               saveSection("student", createStudent, updateStudent, (payload) => ({
                 ...payload,
+                documents: Number(payload.documents || (payload.documentUploads || []).length || 0),
                 feesDue: Number(payload.feesDue || 0),
                 attendance: Number(payload.attendance || 0),
-                documents: Number(payload.documents || 0)
+                documentUploads: payload.documentUploads || []
               }))
             }
             onEdit={(item) => startEdit("student", item)}
@@ -680,6 +750,20 @@ function App() {
             onCancel={() => resetForm("fee")}
             submitting={submitting === "fee"}
             role={currentUser?.role}
+            onStudentPay={async (item) => {
+              setSubmitting("fee");
+              setError("");
+              setSuccessMessage("");
+              try {
+                await payFee(item.id, { amount: Number(item.pending || 0) });
+                await loadAppData();
+                setSuccessMessage("Fee payment recorded successfully.");
+              } catch (submitError) {
+                setError(submitError?.response?.data?.message || "Unable to record fee payment.");
+              } finally {
+                setSubmitting("");
+              }
+            }}
           />
         );
       case "homework":
@@ -690,9 +774,16 @@ function App() {
             editing={Boolean(editing.homework)}
             canManage={["super_admin", "school_admin", "vice_principal", "teacher"].includes(currentUser?.role)}
             onChange={(field, value) => updateForm("homework", field, value)}
+            onAttachmentChange={(file) => handleFileUpload("homework", file, { name: "attachmentName", type: "attachmentType", data: "attachmentData" })}
             onSubmit={() =>
               saveSection("homework", createHomework, updateHomework, (payload) => ({
                 ...payload,
+                attachmentName: payload.attachmentName || "",
+                attachmentType: payload.attachmentType || "",
+                attachmentData: payload.attachmentData || "",
+                studentSubmission: payload.studentSubmission || "",
+                studentSubmissionType: payload.studentSubmissionType || "",
+                studentSubmissionData: payload.studentSubmissionData || "",
                 submissions: Number(payload.submissions || 0),
                 totalStudents: Number(payload.totalStudents || 0)
               }))
@@ -702,6 +793,25 @@ function App() {
             onCancel={() => resetForm("homework")}
             submitting={submitting === "homework"}
             role={currentUser?.role}
+            onStudentSubmit={async (item, file) => {
+              setSubmitting("homework");
+              setError("");
+              setSuccessMessage("");
+              try {
+                const fileData = await readFileAsDataUrl(file);
+                await submitHomework(item.id, {
+                  studentSubmission: file.name,
+                  studentSubmissionType: file.type || "",
+                  studentSubmissionData: fileData
+                });
+                await loadAppData();
+                setSuccessMessage("Homework submitted successfully.");
+              } catch (submitError) {
+                setError(submitError?.response?.data?.message || "Unable to submit homework.");
+              } finally {
+                setSubmitting("");
+              }
+            }}
           />
         );
       case "communication":
@@ -778,28 +888,28 @@ function App() {
     <div className="min-h-screen text-brand-slate">
       <div className="flex min-h-screen">
         <aside
-          className={`fixed inset-y-0 left-0 z-30 w-80 transform overflow-y-auto bg-brand-navy px-5 py-6 text-white shadow-2xl transition-transform duration-300 lg:static lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-30 w-[268px] shrink-0 transform overflow-y-auto bg-brand-navy px-4 py-6 text-white shadow-2xl transition-transform duration-300 lg:static lg:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3 px-2">
             <div className="rounded-2xl bg-brand-gold/95 p-3 text-brand-navy">
               <School size={24} />
             </div>
-            <div>
+            <div className="max-w-[170px]">
               <p className="text-xs uppercase tracking-[0.3em] text-blue-200">EduCore</p>
-              <h1 className="text-xl font-bold">Teacher & Management Portal</h1>
+              <h1 className="mt-1 text-[15px] font-bold leading-[1.35]">Teacher &amp; Management Portal</h1>
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl bg-white/10 p-4 backdrop-blur">
+          <div className="mt-8 rounded-[2rem] bg-white/10 p-4 backdrop-blur">
             <img src={welcomeUser.avatar} alt={welcomeUser.name} className="h-16 w-16 rounded-2xl object-cover" />
-            <p className="mt-4 text-lg font-semibold">{welcomeUser.name}</p>
+            <p className="mt-4 text-[17px] font-semibold leading-tight">{welcomeUser.name}</p>
             <p className="text-sm capitalize text-blue-100">{String(welcomeUser.role).replaceAll("_", " ")}</p>
             <p className="mt-2 text-xs text-blue-200">{welcomeUser.campus}</p>
           </div>
 
-          <nav className="mt-8 space-y-2">
+          <nav className="mt-7 space-y-1.5">
             {filteredNavigation.map((item) => {
               const Icon = item.icon;
               const active = activeTab === item.id;
@@ -815,8 +925,8 @@ function App() {
                     active ? "bg-white text-brand-navy" : "text-blue-100 hover:bg-white/10"
                   }`}
                 >
-                  <Icon size={20} />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon size={18} />
+                  <span className="text-[15px] font-medium leading-snug">{item.label}</span>
                 </button>
               );
             })}
@@ -832,7 +942,7 @@ function App() {
           </button>
         </aside>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-white/70 bg-white/80 backdrop-blur-xl">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-3">
@@ -870,6 +980,7 @@ function App() {
           </header>
 
           <main className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
+            {platform?.announcements?.length ? <AnnouncementTicker announcements={platform.announcements} compact /> : null}
             {successMessage ? <Banner tone="success" message={successMessage} onClose={() => setSuccessMessage("")} /> : null}
             {error ? <Banner tone="error" message={error} onClose={() => setError("")} /> : null}
             {dataLoading && !platform ? <CenteredPanel message="Loading platform modules..." /> : pageContent}
@@ -962,7 +1073,6 @@ function OverviewSection({ dashboard, platform }) {
   const overviewCards = getOverviewCards(role, dashboard, platform);
   const highlights = getOverviewHighlights(role, platform);
   const visibleStudents = (platform.students || []).slice(0, role === "parent" ? 2 : 1);
-  const latestAnnouncements = (platform.announcements || []).slice(0, 3);
 
   return (
     <section className="mt-6 space-y-6">
@@ -1004,24 +1114,6 @@ function OverviewSection({ dashboard, platform }) {
           </div>
         </Panel>
       </div>
-      <Panel title="Live Notification Feed" subtitle="Centralized circular updates shown across the dashboard and web portal">
-        <div className="grid gap-4 lg:grid-cols-3">
-          {latestAnnouncements.map((item) => (
-            <div key={item.id} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <span className="rounded-full bg-brand-navy px-3 py-1 text-xs font-semibold text-white">{item.deliveryMode || "Instant"}</span>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand-blue">{item.status}</span>
-              </div>
-              <p className="mt-4 text-lg font-semibold">{item.title}</p>
-              <p className="mt-2 text-sm text-slate-500">{item.type} • {item.date}</p>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{item.content}</p>
-              <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
-                Targets: {(item.targetRoles || []).map(formatRoleLabel).join(", ") || "All"}
-              </p>
-            </div>
-          ))}
-        </div>
-      </Panel>
     </section>
   );
 }
@@ -1127,12 +1219,14 @@ function OnboardingSection({ items }) {
   );
 }
 
-function StudentsSection({ students, timetable, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting }) {
+function StudentsSection({ students, timetable, role, form, editing, canManage, onChange, onDocumentUpload, onSubmit, onEdit, onDelete, onCancel, submitting }) {
+  const studentView = role === "student";
+  const currentStudent = students[0];
   return (
     <section className="mt-6 space-y-6">
       <TwoColumn
         left={
-          <Panel title="Student Information System" subtitle="Student profiles, class assignment, fee status, and subject mapping for the school">
+          <Panel title={studentView ? "My Details" : "Student Information System"} subtitle={studentView ? "Your complete profile, admission details, documents, medical, sibling, transport, and academic history" : "Student profiles, admission records, transport, medical, sibling linkage, and academic history"}>
             <div className="grid gap-5 lg:grid-cols-2">
               {students.map((student) => (
                 <div key={student.id} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
@@ -1148,12 +1242,35 @@ function StudentsSection({ students, timetable, form, editing, canManage, onChan
                     <ActionButtons canManage={canManage} onEdit={() => onEdit(student)} onDelete={() => onDelete(student.id)} busy={submitting} />
                   </div>
                   <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                    <InfoChip icon={Ticket} label="Application No." value={student.applicationNo || "-"} />
                     <InfoChip icon={UserSquare2} label="Admission No." value={student.admissionNo} />
                     <InfoChip icon={Briefcase} label="Route" value={student.transportRoute} />
                     <InfoChip icon={FileBadge} label="Performance" value={student.performance} />
                     <InfoChip icon={Receipt} label="Fee Due" value={currency(student.feesDue)} />
                     <InfoChip icon={FolderKanban} label="Documents" value={`${student.documents} files`} />
                     <InfoChip icon={Bell} label="Medical" value={student.medical} />
+                  </div>
+                  <div className="mt-5 grid gap-3 md:grid-cols-2 text-sm text-slate-600">
+                    <div className="rounded-2xl bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Admission</p>
+                      <p className="mt-2 font-semibold">{student.admissionDate || "-"}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Sibling Link</p>
+                      <p className="mt-2 font-semibold">{student.siblingName ? `${student.siblingName} • ${student.siblingClass}` : "No sibling linked"}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Medical / Blood</p>
+                      <p className="mt-2 font-semibold">{student.bloodGroup || "-"} • {student.medical}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Transport / Bus</p>
+                      <p className="mt-2 font-semibold">{student.busStop || "-"} • {student.busTrackingStatus || "No live status"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-5 rounded-2xl bg-white p-4 text-sm text-slate-600">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Academic History</p>
+                    <p className="mt-2">{student.academicHistory || "No academic history added yet."}</p>
                   </div>
                   <div className="mt-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Subjects For {student.className}</p>
@@ -1165,37 +1282,117 @@ function StudentsSection({ students, timetable, form, editing, canManage, onChan
                       ))}
                     </div>
                   </div>
+                  {(student.documentUploads || []).length ? (
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Uploaded Documents</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {student.documentUploads.map((doc) => (
+                          <AttachmentDownloadLink key={`${student.id}-${doc.name}`} label={doc.name} data={doc.data || "data:text/plain;charset=utf-8,"} filename={doc.name} />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
           </Panel>
         }
         right={
-          <CrudPanel
-            title={editing ? "Edit Student" : "Add Student"}
-            subtitle="Create or update a student record in the SIS"
-            canManage={canManage}
-            editing={editing}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-            submitting={submitting}
-            submitLabel={editing ? "Save Student" : "Create Student"}
-          >
-            <FormGrid>
-              <Field label="Student Name" value={form.name} onChange={(value) => onChange("name", value)} />
-              <Field label="Admission No." value={form.admissionNo} onChange={(value) => onChange("admissionNo", value)} />
-              <Field label="Class / Section" value={form.className} onChange={(value) => onChange("className", value)} />
-              <Field label="Parent Name" value={form.parentName} onChange={(value) => onChange("parentName", value)} />
-              <Field label="Attendance" type="number" value={form.attendance} onChange={(value) => onChange("attendance", value)} />
-              <Field label="Performance" value={form.performance} onChange={(value) => onChange("performance", value)} />
-              <Field label="Fee Due" type="number" value={form.feesDue} onChange={(value) => onChange("feesDue", value)} />
-              <Field label="Transport Route" value={form.transportRoute} onChange={(value) => onChange("transportRoute", value)} />
-              <Field label="Medical Notes" value={form.medical} onChange={(value) => onChange("medical", value)} />
-              <Field label="Documents Count" type="number" value={form.documents} onChange={(value) => onChange("documents", value)} />
-            </FormGrid>
-          </CrudPanel>
+          studentView ? (
+            <Panel title="Student Information" subtitle="Only your personal school record is visible here">
+              {currentStudent ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <InfoChip icon={UserSquare2} label="Student Name" value={currentStudent.name} />
+                    <InfoChip icon={Ticket} label="Admission No." value={currentStudent.admissionNo} />
+                    <InfoChip icon={FileBadge} label="Application No." value={currentStudent.applicationNo || "-"} />
+                    <InfoChip icon={Receipt} label="Current Fee Due" value={currency(currentStudent.feesDue)} />
+                    <InfoChip icon={Bell} label="Attendance" value={`${currentStudent.attendance}%`} />
+                    <InfoChip icon={Briefcase} label="Bus Route" value={currentStudent.transportRoute || "-"} />
+                    <InfoChip icon={FolderKanban} label="Bus Tracking" value={currentStudent.busTrackingStatus || "-"} />
+                    <InfoChip icon={Ticket} label="TC Issued" value={currentStudent.tcIssued || "No"} />
+                    <InfoChip icon={GraduationCap} label="Alumni Status" value={currentStudent.alumniStatus || "Active"} />
+                    <InfoChip icon={CheckSquare} label="Promoted To" value={currentStudent.promotedTo || "-"} />
+                    <InfoChip icon={FileBadge} label="Emergency Contact" value={currentStudent.emergencyContact || "-"} />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Admission Record</p>
+                      <div className="mt-3 space-y-2">
+                        <p><span className="font-medium text-brand-slate">Admission Date:</span> {currentStudent.admissionDate || "-"}</p>
+                        <p><span className="font-medium text-brand-slate">Application No:</span> {currentStudent.applicationNo || "-"}</p>
+                        <p><span className="font-medium text-brand-slate">Admission No:</span> {currentStudent.admissionNo || "-"}</p>
+                        <p><span className="font-medium text-brand-slate">Class:</span> {currentStudent.className || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Academic & School Status</p>
+                      <div className="mt-3 space-y-2">
+                        <p><span className="font-medium text-brand-slate">Performance:</span> {currentStudent.performance || "-"}</p>
+                        <p><span className="font-medium text-brand-slate">Sibling Link:</span> {currentStudent.siblingName ? `${currentStudent.siblingName} • ${currentStudent.siblingClass}` : "Not linked"}</p>
+                        <p><span className="font-medium text-brand-slate">Medical:</span> {currentStudent.medical || "-"}</p>
+                        <p><span className="font-medium text-brand-slate">Blood Group:</span> {currentStudent.bloodGroup || "-"}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Academic History</p>
+                    <p className="mt-2">{currentStudent.academicHistory || "No academic history available."}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Your student details are not available yet.</div>
+              )}
+            </Panel>
+          ) : (
+            <CrudPanel
+              title={editing ? "Edit Student" : "Add Student"}
+              subtitle="Create or update student profile, admission, academic history, transport, medical, and documents"
+              canManage={canManage}
+              editing={editing}
+              onSubmit={onSubmit}
+              onCancel={onCancel}
+              submitting={submitting}
+              submitLabel={editing ? "Save Student" : "Create Student"}
+            >
+              <FormGrid>
+                <Field label="Student Name" value={form.name} onChange={(value) => onChange("name", value)} />
+                <Field label="Application No." value={form.applicationNo} onChange={(value) => onChange("applicationNo", value)} />
+                <Field label="Admission No." value={form.admissionNo} onChange={(value) => onChange("admissionNo", value)} />
+                <Field label="Class / Section" value={form.className} onChange={(value) => onChange("className", value)} />
+                <Field label="Parent Name" value={form.parentName} onChange={(value) => onChange("parentName", value)} />
+                <Field label="Admission Date" type="date" value={form.admissionDate} onChange={(value) => onChange("admissionDate", value)} />
+                <Field label="Attendance" type="number" value={form.attendance} onChange={(value) => onChange("attendance", value)} />
+                <Field label="Performance" value={form.performance} onChange={(value) => onChange("performance", value)} />
+                <Field label="Fee Due" type="number" value={form.feesDue} onChange={(value) => onChange("feesDue", value)} />
+                <Field label="Transport Route" value={form.transportRoute} onChange={(value) => onChange("transportRoute", value)} />
+                <Field label="Bus Stop" value={form.busStop} onChange={(value) => onChange("busStop", value)} />
+                <Field label="Bus Tracking Status" value={form.busTrackingStatus} onChange={(value) => onChange("busTrackingStatus", value)} />
+                <Field label="Medical Notes" value={form.medical} onChange={(value) => onChange("medical", value)} />
+                <Field label="Blood Group" value={form.bloodGroup} onChange={(value) => onChange("bloodGroup", value)} />
+                <Field label="Emergency Contact" value={form.emergencyContact} onChange={(value) => onChange("emergencyContact", value)} />
+                <Field label="Sibling Name" value={form.siblingName} onChange={(value) => onChange("siblingName", value)} />
+                <Field label="Sibling Class" value={form.siblingClass} onChange={(value) => onChange("siblingClass", value)} />
+                <SelectField label="TC Issued" value={form.tcIssued} options={["No", "Yes"]} onChange={(value) => onChange("tcIssued", value)} />
+                <SelectField label="Alumni Status" value={form.alumniStatus} options={["Active", "Promoted", "Alumni"]} onChange={(value) => onChange("alumniStatus", value)} />
+                <Field label="Promoted To" value={form.promotedTo} onChange={(value) => onChange("promotedTo", value)} />
+                <FileFieldMultiple label="Upload Student Documents" accept=".pdf,.doc,.docx,image/*" onChange={onDocumentUpload} />
+                <TextAreaField label="Academic History" value={form.academicHistory} onChange={(value) => onChange("academicHistory", value)} />
+              </FormGrid>
+            </CrudPanel>
+          )
         }
       />
+      {!studentView ? (
+        <Panel title="Student Operations" subtitle="Bulk import, promotions, TC generation, alumni tracking, and transport visibility">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <DownloadLink label="Download Import CSV" content={"name,applicationNo,admissionNo,className,parentName,admissionDate,transportRoute"} filename="student-import-template.csv" />
+            <DownloadLink label="Promotion Sheet" content={students.map((item) => `${item.name},${item.className},${item.promotedTo || "-"}`).join("\n")} filename="student-promotion-sheet.csv" />
+            <DownloadLink label="TC Register" content={students.map((item) => `${item.name},TC Issued:${item.tcIssued},Alumni:${item.alumniStatus}`).join("\n")} filename="tc-register.txt" />
+            <DownloadLink label="Bus Tracking List" content={students.map((item) => `${item.name},${item.transportRoute},${item.busStop || "-"},${item.busTrackingStatus || "-"}`).join("\n")} filename="student-bus-tracking.txt" />
+          </div>
+        </Panel>
+      ) : null}
     </section>
   );
 }
@@ -1273,70 +1470,115 @@ function StaffSection({ staff, roles, form, editing, canManage, onChange, onSubm
 
 function AttendanceSection({ attendance, records, students, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
   const teacherMode = role === "teacher";
+  const studentMode = role === "student";
   const primaryClass = attendance.studentSummary?.[0];
+  const currentStudent = students[0];
   return (
     <section className="mt-6 space-y-6">
       <Panel title="Attendance Snapshot" subtitle="Daily attendance summary and class status">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiTile label={teacherMode ? "My Class" : "Students Present"} value={teacherMode ? primaryClass?.className || "-" : String(attendance.todayPresent)} hint={teacherMode ? "Assigned class section" : "Live daily count"} />
-          <KpiTile label={teacherMode ? "Present" : "Students Absent"} value={teacherMode ? String(primaryClass?.present || 0) : String(attendance.todayAbsent)} hint={teacherMode ? "Today's recorded present count" : "Current absent count"} />
-          <KpiTile label={teacherMode ? "Absent" : "Staff Present"} value={teacherMode ? String(primaryClass?.absent || 0) : String(attendance.staffPresent)} hint={teacherMode ? "Today's absences" : "Staff attendance summary"} />
-          <KpiTile label={teacherMode ? "Late" : "Shortage Alerts"} value={teacherMode ? String(primaryClass?.late || 0) : String(attendance.shortageAlerts)} hint={teacherMode ? "Late arrivals" : "Below minimum threshold"} />
+          <KpiTile label={teacherMode ? "My Class" : studentMode ? "My Class" : "Students Present"} value={teacherMode ? primaryClass?.className || "-" : studentMode ? currentStudent?.className || "-" : String(attendance.todayPresent)} hint={teacherMode ? "Assigned class section" : studentMode ? "Your current class section" : "Live daily count"} />
+          <KpiTile label={teacherMode ? "Present" : studentMode ? "My Attendance" : "Students Absent"} value={teacherMode ? String(primaryClass?.present || 0) : studentMode ? `${currentStudent?.attendance || 0}%` : String(attendance.todayAbsent)} hint={teacherMode ? "Today's recorded present count" : studentMode ? "Overall attendance percentage" : "Current absent count"} />
+          <KpiTile label={teacherMode ? "Absent" : studentMode ? "Medical Status" : "Staff Present"} value={teacherMode ? String(primaryClass?.absent || 0) : studentMode ? currentStudent?.medical || "-" : String(attendance.staffPresent)} hint={teacherMode ? "Today's absences" : studentMode ? "Personal medical note on file" : "Staff attendance summary"} />
+          <KpiTile label={teacherMode ? "Late" : studentMode ? "Bus Tracking" : "Shortage Alerts"} value={teacherMode ? String(primaryClass?.late || 0) : studentMode ? currentStudent?.busTrackingStatus || "No live status" : String(attendance.shortageAlerts)} hint={teacherMode ? "Late arrivals" : studentMode ? "Assigned transport update" : "Below minimum threshold"} />
         </div>
       </Panel>
-      <TwoColumn
-        left={
-          <Panel title="Daily Attendance Register" subtitle="Create and review attendance records by date">
-            <div className="space-y-4">
-              {(records || []).map((item) => (
+      {studentMode ? (
+        <TwoColumn
+          left={
+            <Panel title="My Attendance Record" subtitle="Only your attendance information is visible here">
+              {currentStudent ? (
+                <div className="space-y-4">
+                  <RecordCard
+                    title={currentStudent.name}
+                    subtitle={`${currentStudent.className} • ${currentStudent.admissionNo}`}
+                    details={[
+                      `Attendance Percentage: ${currentStudent.attendance}%`,
+                      `Performance: ${currentStudent.performance}`,
+                      `Fee Due: ${currency(currentStudent.feesDue)}`
+                    ]}
+                  />
+                  <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm text-slate-600">
+                    Attendance details are restricted to your personal record only.
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No attendance profile available.</div>
+              )}
+            </Panel>
+          }
+          right={
+            <Panel title="Recent Attendance Dates" subtitle="Attendance entries logged by the school for your class">
+              <div className="space-y-4">
+                {(records || []).map((item) => (
+                  <div key={item.id} className="rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600">
+                    <p className="font-semibold text-brand-slate">{item.date}</p>
+                    <p className="mt-1">{item.className}</p>
+                    <p className="mt-2 text-slate-500">Recorded by {item.markedBy || "School staff"}</p>
+                  </div>
+                ))}
+                {!(records || []).length ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No attendance entries available.</div> : null}
+              </div>
+            </Panel>
+          }
+        />
+      ) : (
+        <>
+          <TwoColumn
+            left={
+              <Panel title="Daily Attendance Register" subtitle="Create and review attendance records by date">
+                <div className="space-y-4">
+                  {(records || []).map((item) => (
+                    <RecordCard
+                      key={item.id}
+                      title={`${item.className} • ${item.date}`}
+                      subtitle={`Marked by ${item.markedBy || "Staff"}`}
+                      details={[`Present: ${item.present}`, `Absent: ${item.absent}`, `Late: ${item.late}`]}
+                      canManage={canManage}
+                      onEdit={() => onEdit(item)}
+                      onDelete={() => onDelete(item.id)}
+                      busy={submitting}
+                    />
+                  ))}
+                </div>
+              </Panel>
+            }
+            right={
+              <CrudPanel
+                title={editing ? "Edit Attendance Entry" : "Mark Attendance"}
+                subtitle="Create a new daily attendance entry for your class"
+                canManage={canManage}
+                editing={editing}
+                onSubmit={onSubmit}
+                onCancel={onCancel}
+                submitting={submitting}
+                submitLabel={editing ? "Save Attendance" : "Create Attendance"}
+              >
+                <FormGrid>
+                  <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
+                  <Field label="Date" type="date" value={form.date} onChange={(value) => onChange("date", value)} />
+                  <Field label="Present" type="number" value={form.present} onChange={(value) => onChange("present", value)} />
+                  <Field label="Absent" type="number" value={form.absent} onChange={(value) => onChange("absent", value)} />
+                  <Field label="Late" type="number" value={form.late} onChange={(value) => onChange("late", value)} />
+                  <Field label="Marked By" value={form.markedBy} onChange={(value) => onChange("markedBy", value)} />
+                </FormGrid>
+              </CrudPanel>
+            }
+          />
+          <Panel title="Student Details" subtitle="Students in class with academic and fee status">
+            <div className="grid gap-4 lg:grid-cols-2">
+              {(students || []).map((student) => (
                 <RecordCard
-                  key={item.id}
-                  title={`${item.className} • ${item.date}`}
-                  subtitle={`Marked by ${item.markedBy || "Staff"}`}
-                  details={[`Present: ${item.present}`, `Absent: ${item.absent}`, `Late: ${item.late}`]}
-                  canManage={canManage}
-                  onEdit={() => onEdit(item)}
-                  onDelete={() => onDelete(item.id)}
-                  busy={submitting}
+                  key={student.id}
+                  title={student.name}
+                  subtitle={`${student.className} • ${student.admissionNo}`}
+                  details={[`Attendance: ${student.attendance}%`, `Performance: ${student.performance}`, `Fee Due: ${currency(student.feesDue)}`]}
                 />
               ))}
             </div>
           </Panel>
-        }
-        right={
-          <CrudPanel
-            title={editing ? "Edit Attendance Entry" : "Mark Attendance"}
-            subtitle="Create a new daily attendance entry for your class"
-            canManage={canManage}
-            editing={editing}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-            submitting={submitting}
-            submitLabel={editing ? "Save Attendance" : "Create Attendance"}
-          >
-            <FormGrid>
-              <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
-              <Field label="Date" type="date" value={form.date} onChange={(value) => onChange("date", value)} />
-              <Field label="Present" type="number" value={form.present} onChange={(value) => onChange("present", value)} />
-              <Field label="Absent" type="number" value={form.absent} onChange={(value) => onChange("absent", value)} />
-              <Field label="Late" type="number" value={form.late} onChange={(value) => onChange("late", value)} />
-              <Field label="Marked By" value={form.markedBy} onChange={(value) => onChange("markedBy", value)} />
-            </FormGrid>
-          </CrudPanel>
-        }
-      />
-      <Panel title="Student Details" subtitle="Students in class with academic and fee status">
-        <div className="grid gap-4 lg:grid-cols-2">
-          {(students || []).map((student) => (
-            <RecordCard
-              key={student.id}
-              title={student.name}
-              subtitle={`${student.className} • ${student.admissionNo}`}
-              details={[`Attendance: ${student.attendance}%`, `Performance: ${student.performance}`, `Fee Due: ${currency(student.feesDue)}`]}
-            />
-          ))}
-        </div>
-      </Panel>
+        </>
+      )}
     </section>
   );
 }
@@ -1566,19 +1808,63 @@ function ExamsSection({
   );
 }
 
-function FeesSection({ fees, stats, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
+function FeesSection({ fees, stats, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role, onStudentPay }) {
   const teacherMode = role === "teacher";
+  const studentMode = role === "student";
   const totalStudents = new Set((fees || []).map((item) => item.studentName).filter(Boolean)).size;
+  const totalPaid = (fees || []).reduce((sum, item) => sum + Number(item.paid || 0), 0);
+  const totalPending = (fees || []).reduce((sum, item) => sum + Number(item.pending || 0), 0);
+  const totalAmount = (fees || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   return (
     <section className="mt-6 space-y-6">
-      <Panel title={teacherMode ? "Student Fee Status" : "Fee Management"} subtitle={teacherMode ? "Teachers can view payment progress of their class students" : "Revenue, collections, dues, and receipt-ready records"}>
+      <Panel title={teacherMode ? "Student Fee Status" : studentMode ? "My Fee Management" : "Fee Management"} subtitle={teacherMode ? "Teachers can view payment progress of their class students" : studentMode ? "Track what you have paid, what is pending, and download receipts" : "Revenue, collections, dues, and receipt-ready records"}>
         <div className="grid gap-4 md:grid-cols-3">
-          <KpiTile label={teacherMode ? "Students In Ledger" : "Collected"} value={teacherMode ? String(totalStudents) : currency(stats.feesCollected)} hint={teacherMode ? "Students mapped to your class" : "Online + offline collections"} />
-          <KpiTile label={teacherMode ? "Collected" : "Pending"} value={teacherMode ? currency((fees || []).reduce((sum, item) => sum + Number(item.paid || 0), 0)) : currency(stats.feesPending)} hint={teacherMode ? "Paid amount for your class" : "Includes overdue balances"} />
-          <KpiTile label={teacherMode ? "Remaining" : "Coverage"} value={teacherMode ? currency((fees || []).reduce((sum, item) => sum + Number(item.pending || 0), 0)) : stats.feeCollectionCoverage} hint={teacherMode ? "Outstanding fee amount" : "Schools collecting via platform"} />
+          <KpiTile label={teacherMode ? "Students In Ledger" : studentMode ? "Total Fee" : "Collected"} value={teacherMode ? String(totalStudents) : studentMode ? currency(totalAmount) : currency(stats.feesCollected)} hint={teacherMode ? "Students mapped to your class" : studentMode ? "All fee heads assigned to you" : "Online + offline collections"} />
+          <KpiTile label={teacherMode ? "Collected" : "Pending"} value={teacherMode ? currency(totalPaid) : studentMode ? currency(totalPending) : currency(stats.feesPending)} hint={teacherMode ? "Paid amount for your class" : studentMode ? "Remaining amount to be paid" : "Includes overdue balances"} />
+          <KpiTile label={teacherMode ? "Remaining" : studentMode ? "Paid" : "Coverage"} value={teacherMode ? currency(totalPending) : studentMode ? currency(totalPaid) : stats.feeCollectionCoverage} hint={teacherMode ? "Outstanding fee amount" : studentMode ? "Amount already paid" : "Schools collecting via platform"} />
         </div>
       </Panel>
-      {teacherMode ? (
+      {studentMode ? (
+        <Panel title="My Fee Ledger" subtitle="Only your fee records are visible here">
+          <div className="space-y-4">
+            {fees.map((item) => (
+              <RecordCard
+                key={item.id}
+                title={item.category}
+                subtitle={`${item.className} • Due ${item.dueDate}`}
+                details={[
+                  `Amount: ${currency(item.amount)}`,
+                  `Paid: ${currency(item.paid)}`,
+                  `Remaining: ${currency(item.pending)}`,
+                  `Status: ${item.status}`
+                ]}
+                actions={
+                  <div className="flex flex-wrap gap-2">
+                    <DownloadLink
+                      label="Fee Receipt"
+                      content={buildReceiptContent(item)}
+                      filename={`${(item.studentName || "student").toLowerCase().replaceAll(" ", "-")}-fee-receipt.html`}
+                      mimeType="text/html"
+                    />
+                    {Number(item.pending || 0) > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => onStudentPay(item)}
+                        disabled={submitting}
+                        className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-blue disabled:opacity-60"
+                      >
+                        <CreditCard size={16} />
+                        {submitting ? "Processing..." : "Pay Now"}
+                      </button>
+                    ) : null}
+                  </div>
+                }
+              />
+            ))}
+            {!fees.length ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No fee records are available for your account.</div> : null}
+          </div>
+        </Panel>
+      ) : teacherMode ? (
         <Panel title="Class Fee Ledger" subtitle="Track paid and pending fees for students in your class">
           <div className="space-y-4">
             {fees.map((item) => (
@@ -1656,12 +1942,13 @@ function FeesSection({ fees, stats, form, editing, canManage, onChange, onSubmit
   );
 }
 
-function HomeworkSection({ homework, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
+function HomeworkSection({ homework, form, editing, canManage, onChange, onAttachmentChange, onSubmit, onEdit, onDelete, onCancel, submitting, role, onStudentSubmit }) {
+  const studentMode = role === "student";
   return (
     <section className="mt-6 space-y-6">
       <TwoColumn
         left={
-          <Panel title="Homework Management" subtitle="Online and offline homework with completion tracking">
+          <Panel title={studentMode ? "My Homework" : "Homework Management"} subtitle={studentMode ? "Download homework files and submit online assignments" : "Online and offline homework with completion tracking"}>
             <div className="grid gap-4 lg:grid-cols-2">
               {homework.map((item) => (
                 <div key={item.id} className="rounded-[1.75rem] border border-slate-100 bg-white p-5 shadow-sm">
@@ -1678,8 +1965,28 @@ function HomeworkSection({ homework, form, editing, canManage, onChange, onSubmi
                     <MetricTile label="Due" value={item.dueDate} soft />
                     <MetricTile label="Status" value={item.completionStatus || item.status} soft />
                   </div>
-                  {item.mode === "Online" ? (
-                    <p className="mt-4 text-sm text-slate-500">Student submission: {item.studentSubmission || "Awaiting file upload"}</p>
+                  {item.attachmentData ? (
+                    <div className="mt-4">
+                      <AttachmentDownloadLink
+                        label={item.attachmentName ? `Download ${item.attachmentName}` : "Download Homework File"}
+                        data={item.attachmentData}
+                        filename={item.attachmentName || `${item.title.toLowerCase().replaceAll(" ", "-")}.pdf`}
+                      />
+                    </div>
+                  ) : null}
+                  {studentMode ? (
+                    <StudentHomeworkSubmissionCard item={item} busy={submitting} onSubmit={onStudentSubmit} />
+                  ) : item.mode === "Online" ? (
+                    <div className="mt-4 space-y-3">
+                      <p className="text-sm text-slate-500">Student submission: {item.studentSubmission || "Awaiting file upload"}</p>
+                      {item.studentSubmissionData ? (
+                        <AttachmentDownloadLink
+                          label="Download Student Submission"
+                          data={item.studentSubmissionData}
+                          filename={item.studentSubmission || "student-submission"}
+                        />
+                      ) : null}
+                    </div>
                   ) : (
                     <p className="mt-4 text-sm text-slate-500">Offline homework can be marked completed by the teacher.</p>
                   )}
@@ -1689,29 +1996,41 @@ function HomeworkSection({ homework, form, editing, canManage, onChange, onSubmi
           </Panel>
         }
         right={
-          <CrudPanel
-            title={editing ? "Edit Homework" : "Create Homework"}
-            subtitle="Assign online or offline homework and track completion"
-            canManage={canManage}
-            editing={editing}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-            submitting={submitting}
-            submitLabel={editing ? "Save Homework" : "Create Homework"}
-          >
-            <FormGrid>
-              <Field label="Subject" value={form.subject} onChange={(value) => onChange("subject", value)} />
-              <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
-              <Field label="Title" value={form.title} onChange={(value) => onChange("title", value)} />
-              <Field label="Due Date" type="date" value={form.dueDate} onChange={(value) => onChange("dueDate", value)} />
-              <SelectField label="Mode" value={form.mode} options={["Online", "Offline"]} onChange={(value) => onChange("mode", value)} />
-              <Field label="Student Submission" value={form.studentSubmission} onChange={(value) => onChange("studentSubmission", value)} />
-              <SelectField label="Completion Status" value={form.completionStatus} options={["Pending", "Pending Review", "Completed"]} onChange={(value) => onChange("completionStatus", value)} />
-              <Field label="Submissions" type="number" value={form.submissions} onChange={(value) => onChange("submissions", value)} />
-              <Field label="Total Students" type="number" value={form.totalStudents} onChange={(value) => onChange("totalStudents", value)} />
-              <SelectField label="Status" value={form.status} options={["Active", "Closed", "Draft"]} onChange={(value) => onChange("status", value)} />
-            </FormGrid>
-          </CrudPanel>
+          studentMode ? (
+            <Panel title="Homework Instructions" subtitle="Download offline work or submit online assignments with documents">
+              <div className="space-y-4">
+                <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm text-slate-600">
+                  Students can only see and submit their own homework items. For online mode, upload a PDF, DOC, DOCX, or image after completing the work.
+                </div>
+              </div>
+            </Panel>
+          ) : (
+            <CrudPanel
+              title={editing ? "Edit Homework" : "Create Homework"}
+              subtitle="Assign online or offline homework and track completion"
+              canManage={canManage}
+              editing={editing}
+              onSubmit={onSubmit}
+              onCancel={onCancel}
+              submitting={submitting}
+              submitLabel={editing ? "Save Homework" : "Create Homework"}
+            >
+              <FormGrid>
+                <Field label="Subject" value={form.subject} onChange={(value) => onChange("subject", value)} />
+                <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
+                <Field label="Title" value={form.title} onChange={(value) => onChange("title", value)} />
+                <Field label="Due Date" type="date" value={form.dueDate} onChange={(value) => onChange("dueDate", value)} />
+                <SelectField label="Mode" value={form.mode} options={["Online", "Offline"]} onChange={(value) => onChange("mode", value)} />
+                <Field label="Attachment Name" value={form.attachmentName} onChange={(value) => onChange("attachmentName", value)} />
+                <FileField label="Upload Homework File" accept=".pdf,.doc,.docx,image/*" onChange={onAttachmentChange} />
+                <Field label="Student Submission" value={form.studentSubmission} onChange={(value) => onChange("studentSubmission", value)} />
+                <SelectField label="Completion Status" value={form.completionStatus} options={["Pending", "Pending Review", "Completed"]} onChange={(value) => onChange("completionStatus", value)} />
+                <Field label="Submissions" type="number" value={form.submissions} onChange={(value) => onChange("submissions", value)} />
+                <Field label="Total Students" type="number" value={form.totalStudents} onChange={(value) => onChange("totalStudents", value)} />
+                <SelectField label="Status" value={form.status} options={["Active", "Closed", "Draft"]} onChange={(value) => onChange("status", value)} />
+              </FormGrid>
+            </CrudPanel>
+          )
         }
       />
     </section>
@@ -1720,20 +2039,10 @@ function HomeworkSection({ homework, form, editing, canManage, onChange, onSubmi
 
 function CommunicationSection({ announcements, form, editing, canManage, onChange, onFileChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
   const viewerMode = role === "parent" || role === "student";
-  const liveCount = announcements.filter((item) => item.status === "Published").length;
-  const scheduledCount = announcements.filter((item) => item.deliveryMode === "Scheduled" || item.status === "Scheduled").length;
   return (
     <section className="mt-6 space-y-6">
-      <Panel title="Centralized Notification System" subtitle="Broadcast announcements like news across dashboard and web portal with real-time updates, scheduling, and role-based targeting">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiTile label="Live Broadcasts" value={String(liveCount)} hint="Currently visible across the portal" />
-          <KpiTile label="Scheduled" value={String(scheduledCount)} hint="Queued for future delivery" />
-          <KpiTile label="Target Roles" value={String(notificationTargetOptions.length)} hint="Role-based audience selection" />
-          <KpiTile label="Documents" value={String(announcements.filter((item) => item.documentName).length)} hint="Uploaded circular attachments" />
-        </div>
-      </Panel>
       {viewerMode ? (
-        <Panel title="School Circulars" subtitle="Important school-wide notices like holidays, urgent closures, and due reminders">
+        <Panel title="School Notices" subtitle="Circulars and announcements shared by the school">
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -1750,7 +2059,7 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
       ) : (
         <TwoColumn
           left={
-            <Panel title="Notification Broadcaster" subtitle="Centralized dashboard and portal announcements with live updates, scheduling, and role targeting">
+            <Panel title="Notification & Communication" subtitle="Broadcast circulars, announcements, and delivery workflows">
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -1760,10 +2069,11 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
                     </div>
                     <p className="mt-4 text-xl font-semibold">{item.title}</p>
                     <p className="mt-2 text-sm text-slate-500">{item.audience} • {item.date}</p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-                      {item.deliveryMode || "Instant"} • {(item.targetRoles || []).map(formatRoleLabel).join(", ") || "All Roles"}
-                    </p>
-                    {item.scheduledAt ? <p className="mt-2 text-sm text-slate-500">Scheduled: {item.scheduledAt}</p> : <p className="mt-2 text-sm text-emerald-600">Real-time update</p>}
+                    {item.deliveryMode || item.scheduledAt ? (
+                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        {item.deliveryMode || "Instant"}{item.scheduledAt ? ` • ${item.scheduledAt}` : ""}
+                      </p>
+                    ) : null}
                     {item.documentName ? <p className="mt-2 text-sm font-medium text-brand-blue">Document: {item.documentName}</p> : null}
                     <p className="mt-4 text-sm leading-6 text-slate-600">{item.content}</p>
                     <div className="mt-4">
@@ -1788,14 +2098,14 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
           }
           right={
             <CrudPanel
-              title={editing ? "Edit Notification Broadcast" : "Create Notification Broadcast"}
-              subtitle="Centralized broadcaster for dashboard and web portal announcements"
+              title={editing ? "Edit Announcement" : "Create Announcement"}
+              subtitle="Publish a circular or notice for dashboard and web users"
               canManage={canManage}
               editing={editing}
               onSubmit={onSubmit}
               onCancel={onCancel}
               submitting={submitting}
-              submitLabel={editing ? "Save Broadcast" : "Publish Broadcast"}
+              submitLabel={editing ? "Save Announcement" : "Publish Announcement"}
             >
               <FormGrid>
                 <Field label="Title" value={form.title} onChange={(value) => onChange("title", value)} />
@@ -1809,9 +2119,9 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
                 <TextAreaField label="Content" value={form.content} onChange={(value) => onChange("content", value)} />
                 <SelectField label="Status" value={form.status} options={["Published", "Draft"]} onChange={(value) => onChange("status", value)} />
               </FormGrid>
-              <div className="mt-6 rounded-[1.5rem] bg-slate-50 p-5">
+              <div className="mt-6 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Role-Based Targeting</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="grid gap-2">
                   {notificationTargetOptions.map((option) => {
                     const active = (form.targetRoles || []).includes(option.id);
                     return (
@@ -1824,9 +2134,12 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
                             active ? (form.targetRoles || []).filter((item) => item !== option.id) : [...(form.targetRoles || []), option.id]
                           )
                         }
-                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${active ? "bg-brand-navy text-white" : "bg-white text-slate-600"}`}
+                        className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                          active ? "border-brand-blue bg-brand-paper text-brand-blue" : "border-slate-200 bg-white text-slate-600"
+                        }`}
                       >
-                        {option.label}
+                        <span>{option.label}</span>
+                        <span>{active ? "Selected" : "Select"}</span>
                       </button>
                     );
                   })}
@@ -2118,6 +2431,39 @@ function UserAccessCard({ user, onSave }) {
   );
 }
 
+function AnnouncementTicker({ announcements, compact = false }) {
+  const items = announcements.filter((item) => item.status === "Published");
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <div className={`overflow-hidden border border-amber-200 bg-amber-50 ${compact ? "mb-4 rounded-2xl px-4 py-2" : "rounded-[1.75rem] px-4 py-3"}`}>
+      <style>{`
+        @keyframes educore-marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
+      <div className="flex items-center gap-3">
+        <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">Live</span>
+        <div className="min-w-0 overflow-hidden">
+          <div
+            className={`flex w-max items-center gap-10 whitespace-nowrap font-medium text-amber-900 ${compact ? "text-xs" : "text-sm"}`}
+            style={{ animation: "educore-marquee 28s linear infinite" }}
+          >
+            {[...items, ...items].map((item, index) => (
+              <span key={`${item.id}-${index}`}>
+                {item.type}: {item.title} • {item.content}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getOverviewCards(role, dashboard, platform) {
   if (role === "teacher") {
     return [
@@ -2213,25 +2559,81 @@ function StudentDashboard({ platform }) {
       </div>
       <TwoColumn
         left={
-          <Panel title="My Profile" subtitle="Student profile and academic snapshot">
+          <Panel title="My Profile" subtitle="Student dashboard with profile, admission, medical, sibling, and transport details">
             {student ? (
-              <RecordCard
-                title={student.name}
-                subtitle={`${student.className} • ${student.admissionNo}`}
-                details={[`Performance: ${student.performance}`, `Transport: ${student.transportRoute}`, `Medical: ${student.medical}`]}
-              />
+              <div className="space-y-4">
+                <RecordCard
+                  title={student.name}
+                  subtitle={`${student.className} • ${student.admissionNo}`}
+                  details={[
+                    `Application No: ${student.applicationNo || "-"}`,
+                    `Admission Date: ${student.admissionDate || "-"}`,
+                    `Performance: ${student.performance}`,
+                    `Medical: ${student.medical}`,
+                    `Sibling: ${student.siblingName || "Not linked"}`,
+                    `Emergency: ${student.emergencyContact || "-"}`
+                  ]}
+                />
+                <RecordCard
+                  title="Transport & Bus Tracking"
+                  subtitle={`${student.transportRoute || "No route"} • ${student.busStop || "No stop assigned"}`}
+                  details={[
+                    `Live Status: ${student.busTrackingStatus || "No live bus data"}`,
+                    `Promoted To: ${student.promotedTo || "-"}`,
+                    `TC Issued: ${student.tcIssued || "No"}`,
+                    `Alumni Status: ${student.alumniStatus || "Active"}`
+                  ]}
+                />
+              </div>
             ) : (
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No student profile available.</div>
             )}
           </Panel>
         }
         right={
-          <Panel title="Student Focus" subtitle="Important learning items">
+          <Panel title="Student Dashboard" subtitle="Everything a student should see in the portal">
             <div className="grid gap-4">
               <KpiTile label="Assignments" value={String((platform.homework || []).length)} hint="Complete before due date" />
               <KpiTile label="Announcements" value={String((platform.announcements || []).length)} hint="Read school notices" />
               <KpiTile label="Results" value={String((platform.results || []).length)} hint="Latest exam records" />
-              <KpiTile label="Content Library" value={String((platform.content || []).length)} hint="Study resources" />
+              <KpiTile label="Fee Ledger" value={String((platform.fees || []).length)} hint="Track dues and receipts" />
+              <KpiTile label="Weekly Timetable" value={String((platform.timetable || []).length)} hint="See upcoming classes" />
+              <KpiTile label="Attendance Records" value={String((platform.attendanceRecords || []).length)} hint="View class attendance history" />
+            </div>
+          </Panel>
+        }
+      />
+      <TwoColumn
+        left={
+          <Panel title="Academic History" subtitle="Admission records and year-to-year academic movement">
+            <div className="space-y-4">
+              <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm leading-7 text-slate-600">
+                {student?.academicHistory || "Academic history will appear here once maintained by the school administration."}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm text-slate-600">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Promotion & Alumni</p>
+                  <p className="mt-3"><span className="font-medium text-brand-slate">Promoted To:</span> {student?.promotedTo || "-"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Alumni Status:</span> {student?.alumniStatus || "Active"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">TC Issued:</span> {student?.tcIssued || "No"}</p>
+                </div>
+                <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm text-slate-600">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Transport & Bus Tracking</p>
+                  <p className="mt-3"><span className="font-medium text-brand-slate">Route:</span> {student?.transportRoute || "-"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Bus Stop:</span> {student?.busStop || "-"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Status:</span> {student?.busTrackingStatus || "No live bus data"}</p>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        }
+        right={
+          <Panel title="Student Documents" subtitle="Uploaded school and admission documents">
+            <div className="space-y-3">
+              {(student?.documentUploads || []).map((doc) => (
+                <AttachmentDownloadLink key={doc.name} label={doc.name} data={doc.data || "data:text/plain;charset=utf-8,"} filename={doc.name} />
+              ))}
+              {!(student?.documentUploads || []).length ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No uploaded documents available.</div> : null}
             </div>
           </Panel>
         }
@@ -2354,6 +2756,37 @@ function TransportDashboard({ platform }) {
         </div>
       </Panel>
     </section>
+  );
+}
+
+function StudentHomeworkSubmissionCard({ item, busy, onSubmit }) {
+  const [file, setFile] = useState(null);
+
+  if (item.mode !== "Online") {
+    return <p className="mt-4 text-sm text-slate-500">This is an offline assignment. Complete it in class or notebook as instructed by your teacher.</p>;
+  }
+
+  return (
+    <div className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4">
+      <p className="text-sm text-slate-600">Submission: {item.studentSubmission || "Not submitted yet"}</p>
+      {item.studentSubmissionData ? (
+        <AttachmentDownloadLink
+          label="Download Submitted Work"
+          data={item.studentSubmissionData}
+          filename={item.studentSubmission || "submitted-homework"}
+        />
+      ) : null}
+      <FileField label="Upload Completed Work" accept=".pdf,.doc,.docx,image/*" onChange={setFile} />
+      <button
+        type="button"
+        onClick={() => file && onSubmit(item, file)}
+        disabled={!file || busy}
+        className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-blue disabled:opacity-60"
+      >
+        <Upload size={16} />
+        {busy ? "Submitting..." : "Submit Homework"}
+      </button>
+    </div>
   );
 }
 
@@ -2611,6 +3044,21 @@ function FileField({ label, accept, onChange }) {
   );
 }
 
+function FileFieldMultiple({ label, accept, onChange }) {
+  return (
+    <label className="block md:col-span-2">
+      <span className="mb-2 block text-sm font-medium text-slate-600">{label}</span>
+      <input
+        type="file"
+        multiple
+        accept={accept}
+        onChange={(event) => onChange(event.target.files || [])}
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-brand-paper file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-blue focus:border-brand-blue"
+      />
+    </label>
+  );
+}
+
 function TextAreaField({ label, value, onChange }) {
   return (
     <label className="block md:col-span-2">
@@ -2705,14 +3153,27 @@ function mapItemToForm(section, item) {
       return {
         name: item.name || "",
         admissionNo: item.admissionNo || "",
+        applicationNo: item.applicationNo || "",
         className: item.className || "",
         parentName: item.parentName || "",
+        admissionDate: item.admissionDate || "",
+        academicHistory: item.academicHistory || "",
         feesDue: String(item.feesDue ?? ""),
         transportRoute: item.transportRoute || "",
+        busStop: item.busStop || "",
+        busTrackingStatus: item.busTrackingStatus || "",
         medical: item.medical || "",
+        bloodGroup: item.bloodGroup || "",
+        emergencyContact: item.emergencyContact || "",
+        siblingName: item.siblingName || "",
+        siblingClass: item.siblingClass || "",
+        tcIssued: item.tcIssued || "No",
+        alumniStatus: item.alumniStatus || "Active",
+        promotedTo: item.promotedTo || "",
         attendance: String(item.attendance ?? ""),
         performance: item.performance || "Pending",
-        documents: String(item.documents ?? "")
+        documents: String(item.documents ?? ""),
+        documentUploads: item.documentUploads || []
       };
     case "attendance":
       return {
@@ -2789,7 +3250,12 @@ function mapItemToForm(section, item) {
         title: item.title || "",
         dueDate: item.dueDate || "",
         mode: item.mode || "Offline",
+        attachmentName: item.attachmentName || "",
+        attachmentType: item.attachmentType || "",
+        attachmentData: item.attachmentData || "",
         studentSubmission: item.studentSubmission || "",
+        studentSubmissionType: item.studentSubmissionType || "",
+        studentSubmissionData: item.studentSubmissionData || "",
         completionStatus: item.completionStatus || "Pending",
         submissions: String(item.submissions ?? ""),
         totalStudents: String(item.totalStudents ?? ""),

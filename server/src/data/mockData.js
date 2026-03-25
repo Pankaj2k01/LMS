@@ -50,6 +50,20 @@ export const mockUsers = [
     campus: "Rahul Education Campus",
     avatar:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "student-001",
+    name: "Ivan Vinod Vishwakarma",
+    email: "student@sms.com",
+    password: "student123",
+    role: "student",
+    linkedStudentId: "stu-001",
+    accessPermissions: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
+    responsibilities: "Student portal access",
+    phone: "+91 90000 12345",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=300&q=80"
   }
 ];
 
@@ -123,14 +137,30 @@ export const mockStudents = [
   {
     id: "stu-001",
     admissionNo: "21RISNIC0049",
+    applicationNo: "APP-2021-0049",
     name: "Ivan Vinod Vishwakarma",
     className: "Grade 3 - B",
     parentName: "Vinod Vishwakarma",
+    admissionDate: "2021-06-12",
+    academicHistory: "Promoted from Grade 2 - A in AY 2025-26 with A grade.",
     attendance: 94,
     feesDue: 12500,
     performance: "A",
     transportRoute: "Route 4",
+    busStop: "Shivaji Nagar",
+    busTrackingStatus: "Bus reached stop at 07:20 AM",
     medical: "No allergies",
+    bloodGroup: "O+",
+    emergencyContact: "+91 9876543210",
+    siblingName: "Anish Vinod",
+    siblingClass: "K 2 - A",
+    tcIssued: "No",
+    alumniStatus: "Active",
+    promotedTo: "Grade 4 - A",
+    documentUploads: [
+      { name: "birth-certificate.pdf", type: "application/pdf", data: "" },
+      { name: "aadhaar-card.pdf", type: "application/pdf", data: "" }
+    ],
     documents: 5,
     avatar:
       "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=300&q=80"
@@ -138,14 +168,27 @@ export const mockStudents = [
   {
     id: "stu-002",
     admissionNo: "24RISNIC0021",
+    applicationNo: "APP-2024-0021",
     name: "Anish Vinod",
     className: "K 2 - A",
     parentName: "Vinod Vishwakarma",
+    admissionDate: "2024-06-10",
+    academicHistory: "New admission for AY 2024-25.",
     attendance: 91,
     feesDue: 8500,
     performance: "A-",
     transportRoute: "Route 2",
+    busStop: "Civil Lines",
+    busTrackingStatus: "Bus departed school at 01:15 PM",
     medical: "Dust allergy",
+    bloodGroup: "B+",
+    emergencyContact: "+91 9876543210",
+    siblingName: "Ivan Vinod Vishwakarma",
+    siblingClass: "Grade 3 - B",
+    tcIssued: "No",
+    alumniStatus: "Active",
+    promotedTo: "",
+    documentUploads: [{ name: "vaccination-card.pdf", type: "application/pdf", data: "" }],
     documents: 4,
     avatar:
       "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=300&q=80"
@@ -153,14 +196,27 @@ export const mockStudents = [
   {
     id: "stu-003",
     admissionNo: "22RPS0041",
+    applicationNo: "APP-2022-0041",
     name: "Sara Iqbal",
     className: "Grade 8 - A",
     parentName: "Amina Iqbal",
+    admissionDate: "2022-06-15",
+    academicHistory: "Consistent topper since Grade 6. Participated in science fair and debate club.",
     attendance: 88,
     feesDue: 0,
     performance: "A+",
     transportRoute: "Route 1",
+    busStop: "City Mall",
+    busTrackingStatus: "No live route assigned today",
     medical: "No conditions",
+    bloodGroup: "A+",
+    emergencyContact: "+91 9988776655",
+    siblingName: "",
+    siblingClass: "",
+    tcIssued: "No",
+    alumniStatus: "Active",
+    promotedTo: "Grade 9 - A",
+    documentUploads: [{ name: "admission-form.pdf", type: "application/pdf", data: "" }],
     documents: 6,
     avatar:
       "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=300&q=80"
@@ -423,7 +479,12 @@ export const mockHomework = [
     title: "Fractions Worksheet",
     dueDate: "2026-03-26",
     mode: "Online",
+    attachmentName: "fractions-worksheet.pdf",
+    attachmentType: "application/pdf",
+    attachmentData: "",
     studentSubmission: "fractions-worksheet-ivan.pdf",
+    studentSubmissionType: "application/pdf",
+    studentSubmissionData: "",
     completionStatus: "Pending Review",
     submissions: 24,
     totalStudents: 31,
@@ -436,7 +497,12 @@ export const mockHomework = [
     title: "Plant Life Cycle Diagram",
     dueDate: "2026-03-28",
     mode: "Offline",
+    attachmentName: "plant-life-cycle-reference.pdf",
+    attachmentType: "application/pdf",
+    attachmentData: "",
     studentSubmission: "",
+    studentSubmissionType: "",
+    studentSubmissionData: "",
     completionStatus: "Pending",
     submissions: 18,
     totalStudents: 31,
@@ -447,6 +513,7 @@ export const mockHomework = [
 export const mockFees = [
   {
     id: "fee-001",
+    studentId: "stu-001",
     studentName: "Ivan Vinod Vishwakarma",
     category: "Tuition Fee",
     className: "Grade 3 - B",
@@ -454,10 +521,13 @@ export const mockFees = [
     amount: 10000,
     paid: 7500,
     pending: 2500,
-    status: "Partial"
+    status: "Partial",
+    receiptNo: "RCPT-2026-001",
+    lastPaymentDate: "2026-03-10"
   },
   {
     id: "fee-002",
+    studentId: "stu-001",
     studentName: "Ivan Vinod Vishwakarma",
     category: "Transport Fee",
     className: "Grade 3 - B",
@@ -465,10 +535,13 @@ export const mockFees = [
     amount: 2500,
     paid: 0,
     pending: 2500,
-    status: "Pending"
+    status: "Pending",
+    receiptNo: "RCPT-2026-002",
+    lastPaymentDate: ""
   },
   {
     id: "fee-003",
+    studentId: "stu-003",
     studentName: "Sara Iqbal",
     category: "Activity Fee",
     className: "Grade 8 - A",
@@ -476,7 +549,9 @@ export const mockFees = [
     amount: 3500,
     paid: 3500,
     pending: 0,
-    status: "Paid"
+    status: "Paid",
+    receiptNo: "RCPT-2026-003",
+    lastPaymentDate: "2026-03-12"
   }
 ];
 

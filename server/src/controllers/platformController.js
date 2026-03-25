@@ -39,6 +39,13 @@ function classMatches(assignedClasses, className) {
   return assignedClasses.some((assignedClass) => className === assignedClass || className.startsWith(assignedClass));
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 async function resolveUserContext(userId) {
   const [user, staff] = await Promise.all([repositories.users.getById(userId), repositories.staff.list()]);
   const staffProfile = staff.find((item) => item.name === user?.name);
@@ -52,7 +59,7 @@ async function resolveUserContext(userId) {
   };
 }
 
-function scopePlatformDataByRole(role, data, assignedClasses = []) {
+function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) {
   const base = {
     stats: data.stats,
     attendance: mockAttendance,
@@ -98,13 +105,57 @@ function scopePlatformDataByRole(role, data, assignedClasses = []) {
         fees: data.fees.filter((item) => classMatches(teacherClasses, item.className)),
         leaves: data.leaves.filter((item) => item.role === "Teacher" || item.role === "Student")
       };
+    case "student": {
+      const currentStudent =
+        data.students.find((item) => item.id === user?.linkedStudentId) ||
+        data.students.find((item) => item.name === user?.name) ||
+        null;
+      const className = currentStudent?.className || "";
+      const matchedFees = data.fees.filter(
+        (item) =>
+          item.studentId === currentStudent?.id ||
+          normalizeText(item.studentName) === normalizeText(currentStudent?.name)
+      );
+      const studentFees =
+        matchedFees.length > 0
+          ? matchedFees
+          : currentStudent?.feesDue
+            ? [
+                {
+                  id: `fee-${currentStudent.id}-fallback`,
+                  studentId: currentStudent.id,
+                  studentName: currentStudent.name,
+                  category: "Admission / Tuition Fee",
+                  className,
+                  dueDate: new Date().toISOString().slice(0, 10),
+                  amount: Number(currentStudent.feesDue || 0),
+                  paid: 0,
+                  pending: Number(currentStudent.feesDue || 0),
+                  status: "Pending",
+                  receiptNo: `RCPT-${currentStudent.admissionNo || currentStudent.id}`,
+                  lastPaymentDate: ""
+                }
+              ]
+            : [];
+      return {
+        ...base,
+        students: currentStudent ? [currentStudent] : [],
+        homework: data.homework.filter((item) => item.className === className),
+        exams: data.exams.filter((item) => item.className === className),
+        results: data.results.filter((item) => item.student === currentStudent?.name),
+        timetable: data.timetable.filter((item) => item.className === className),
+        attendanceRecords: data.attendanceRecords.filter((item) => item.className === className),
+        fees: studentFees,
+        leaves: data.leaves.filter((item) => item.applicant === currentStudent?.name || item.role === "Student")
+      };
+    }
     default:
       return base;
   }
 }
 
 export async function platformDataController(req, res) {
-  const [{ assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves] = await Promise.all([
+  const [{ user, assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves] = await Promise.all([
     resolveUserContext(req.user.id),
     repositories.students.list(),
     repositories.staff.list(),
@@ -132,11 +183,11 @@ export async function platformDataController(req, res) {
     stats: buildStats({ students, staff, fees, homework, announcements, leaves, exams, results, attendanceRecords, timetable })
   };
 
-  res.json(scopePlatformDataByRole(req.user.role, fullData, assignedClasses));
+  res.json(scopePlatformDataByRole(req.user.role, fullData, assignedClasses, user));
 }
 
 export async function dashboardController(req, res) {
-  const [{ assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves] = await Promise.all([
+  const [{ user, assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves] = await Promise.all([
     resolveUserContext(req.user.id),
     repositories.students.list(),
     repositories.staff.list(),
@@ -166,7 +217,7 @@ export async function dashboardController(req, res) {
 
   res.json({
     userRole: req.user.role,
-    ...scopePlatformDataByRole(req.user.role, fullData, assignedClasses)
+    ...scopePlatformDataByRole(req.user.role, fullData, assignedClasses, user)
   });
 }
 
