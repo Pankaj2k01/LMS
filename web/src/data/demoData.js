@@ -1,0 +1,7 @@
+export const demoUser = {
+  name: "Neha Kapoor",
+  role: "Super Admin",
+  campus: "EduCore",
+  avatar:
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80"
+};

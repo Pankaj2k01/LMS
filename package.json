@@ -1,0 +1,11 @@
+{
+  "name": "educore",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:web": "npm --prefix web run dev",
+    "dev:api": "npm --prefix server run dev",
+    "build:web": "npm --prefix web run build",
+    "start:api": "npm --prefix server run start"
+  }
+}

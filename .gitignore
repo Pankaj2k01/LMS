@@ -1,0 +1,7 @@
+node_modules
+dist
+.DS_Store
+.env
+server/.env
+web/.env
+server/src/data/persisted-data.json
