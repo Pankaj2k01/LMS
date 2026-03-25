@@ -379,7 +379,10 @@ export const mockAnnouncements = [
     title: "School Holiday Circular",
     audience: "All Students",
     type: "Holiday Circular",
+    targetRoles: ["teacher", "vice_principal", "school_admin"],
+    deliveryMode: "Scheduled",
     date: "2026-03-20",
+    scheduledAt: "2026-03-20T07:30",
     documentName: "school-holiday-circular.pdf",
     status: "Published",
     content: "School will remain closed on Friday due to a local public holiday. Regular classes will resume on Saturday."
@@ -389,10 +392,26 @@ export const mockAnnouncements = [
     title: "Urgent School Closure Notice",
     audience: "All Staff and Students",
     type: "Urgent Closure",
+    targetRoles: ["teacher", "vice_principal", "school_admin"],
+    deliveryMode: "Instant",
     date: "2026-03-18",
+    scheduledAt: "",
     documentName: "urgent-school-closure-notice.pdf",
     status: "Published",
     content: "Due to heavy rain and city advisory, the school campus will remain closed today. Further updates will be shared through EduCore circulars."
+  },
+  {
+    id: "ann-003",
+    title: "Fee Due Reminder Broadcast",
+    audience: "Teachers and Management",
+    type: "Fee Due Reminder",
+    targetRoles: ["teacher", "vice_principal", "school_admin"],
+    deliveryMode: "Scheduled",
+    date: "2026-03-26",
+    scheduledAt: "2026-03-26T09:00",
+    documentName: "fee-due-reminder.pdf",
+    status: "Scheduled",
+    content: "Fee due reminder will be shown on dashboard and web portal for the selected academic roles at 9:00 AM."
   }
 ];
 

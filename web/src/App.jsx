@@ -94,6 +94,13 @@ const moduleAccessOptions = [
   { id: "leave", label: "Leave Applications" }
 ];
 
+const notificationTargetOptions = [
+  { id: "teacher", label: "Teachers" },
+  { id: "vice_principal", label: "Vice Principal" },
+  { id: "school_admin", label: "Principal" },
+  { id: "super_admin", label: "Super Admin" }
+];
+
 const roleTabs = {
   super_admin: navigation.map((item) => item.id),
   school_admin: navigation.map((item) => item.id),
@@ -134,7 +141,20 @@ const initialForms = {
   exam: { name: "", className: "", schedule: "", examDate: "", uploadedBy: "", fileName: "", fileType: "", fileData: "", hallTickets: "Draft", resultStatus: "Pending" },
   result: { student: "", className: "", exam: "", percentage: "", grade: "", rank: "", approvalStatus: "Pending", approvedBy: "" },
   fee: { studentName: "", category: "", className: "", dueDate: "", amount: "", paid: "", pending: "", status: "Pending" },
-  announcement: { title: "", audience: "", type: "Circular", date: "", documentName: "", documentType: "", documentData: "", content: "", status: "Published" },
+  announcement: {
+    title: "",
+    audience: "",
+    type: "General Circular",
+    targetRoles: ["teacher"],
+    deliveryMode: "Instant",
+    date: "",
+    scheduledAt: "",
+    documentName: "",
+    documentType: "",
+    documentData: "",
+    content: "",
+    status: "Published"
+  },
   homework: { subject: "", className: "", title: "", dueDate: "", mode: "Offline", studentSubmission: "", completionStatus: "Pending", submissions: "", totalStudents: "", status: "Active" },
   leave: { applicant: "", role: "", from: "", to: "", reason: "", status: "Pending" }
 };
@@ -271,7 +291,10 @@ function buildAnnouncementDocument(item) {
 Title: ${item.title}
 Audience: ${item.audience}
 Type: ${item.type}
+Target Roles: ${(item.targetRoles || []).join(", ") || "All"}
+Delivery Mode: ${item.deliveryMode || "Instant"}
 Date: ${item.date}
+Scheduled At: ${item.scheduledAt || "Immediate"}
 Status: ${item.status}
 Document: ${item.documentName || "No file attached"}
 
@@ -939,6 +962,7 @@ function OverviewSection({ dashboard, platform }) {
   const overviewCards = getOverviewCards(role, dashboard, platform);
   const highlights = getOverviewHighlights(role, platform);
   const visibleStudents = (platform.students || []).slice(0, role === "parent" ? 2 : 1);
+  const latestAnnouncements = (platform.announcements || []).slice(0, 3);
 
   return (
     <section className="mt-6 space-y-6">
@@ -980,6 +1004,24 @@ function OverviewSection({ dashboard, platform }) {
           </div>
         </Panel>
       </div>
+      <Panel title="Live Notification Feed" subtitle="Centralized circular updates shown across the dashboard and web portal">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {latestAnnouncements.map((item) => (
+            <div key={item.id} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <span className="rounded-full bg-brand-navy px-3 py-1 text-xs font-semibold text-white">{item.deliveryMode || "Instant"}</span>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand-blue">{item.status}</span>
+              </div>
+              <p className="mt-4 text-lg font-semibold">{item.title}</p>
+              <p className="mt-2 text-sm text-slate-500">{item.type} • {item.date}</p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{item.content}</p>
+              <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
+                Targets: {(item.targetRoles || []).map(formatRoleLabel).join(", ") || "All"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Panel>
     </section>
   );
 }
@@ -1678,8 +1720,18 @@ function HomeworkSection({ homework, form, editing, canManage, onChange, onSubmi
 
 function CommunicationSection({ announcements, form, editing, canManage, onChange, onFileChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
   const viewerMode = role === "parent" || role === "student";
+  const liveCount = announcements.filter((item) => item.status === "Published").length;
+  const scheduledCount = announcements.filter((item) => item.deliveryMode === "Scheduled" || item.status === "Scheduled").length;
   return (
     <section className="mt-6 space-y-6">
+      <Panel title="Centralized Notification System" subtitle="Broadcast announcements like news across dashboard and web portal with real-time updates, scheduling, and role-based targeting">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <KpiTile label="Live Broadcasts" value={String(liveCount)} hint="Currently visible across the portal" />
+          <KpiTile label="Scheduled" value={String(scheduledCount)} hint="Queued for future delivery" />
+          <KpiTile label="Target Roles" value={String(notificationTargetOptions.length)} hint="Role-based audience selection" />
+          <KpiTile label="Documents" value={String(announcements.filter((item) => item.documentName).length)} hint="Uploaded circular attachments" />
+        </div>
+      </Panel>
       {viewerMode ? (
         <Panel title="School Circulars" subtitle="Important school-wide notices like holidays, urgent closures, and due reminders">
               <div className="grid gap-4 lg:grid-cols-2">
@@ -1688,6 +1740,7 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
                     <span className="rounded-full bg-brand-navy px-3 py-1 text-xs font-semibold text-white">{item.status}</span>
                     <p className="mt-4 text-xl font-semibold">{item.title}</p>
                     <p className="mt-2 text-sm text-slate-500">{item.audience} • {item.date}</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">Targets: {(item.targetRoles || []).map(formatRoleLabel).join(", ") || "All"}</p>
                     {item.documentName ? <p className="mt-2 text-sm font-medium text-brand-blue">Document: {item.documentName}</p> : null}
                     <p className="mt-4 text-sm leading-6 text-slate-600">{item.content}</p>
                   </div>
@@ -1697,7 +1750,7 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
       ) : (
         <TwoColumn
           left={
-            <Panel title="Circular Module" subtitle="Create and manage school circulars for holidays, urgent closures, and important updates">
+            <Panel title="Notification Broadcaster" subtitle="Centralized dashboard and portal announcements with live updates, scheduling, and role targeting">
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -1707,6 +1760,10 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
                     </div>
                     <p className="mt-4 text-xl font-semibold">{item.title}</p>
                     <p className="mt-2 text-sm text-slate-500">{item.audience} • {item.date}</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                      {item.deliveryMode || "Instant"} • {(item.targetRoles || []).map(formatRoleLabel).join(", ") || "All Roles"}
+                    </p>
+                    {item.scheduledAt ? <p className="mt-2 text-sm text-slate-500">Scheduled: {item.scheduledAt}</p> : <p className="mt-2 text-sm text-emerald-600">Real-time update</p>}
                     {item.documentName ? <p className="mt-2 text-sm font-medium text-brand-blue">Document: {item.documentName}</p> : null}
                     <p className="mt-4 text-sm leading-6 text-slate-600">{item.content}</p>
                     <div className="mt-4">
@@ -1731,25 +1788,50 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
           }
           right={
             <CrudPanel
-              title={editing ? "Edit Circular" : "Create Circular"}
-              subtitle="Publish a school circular for all required audiences"
+              title={editing ? "Edit Notification Broadcast" : "Create Notification Broadcast"}
+              subtitle="Centralized broadcaster for dashboard and web portal announcements"
               canManage={canManage}
               editing={editing}
               onSubmit={onSubmit}
               onCancel={onCancel}
               submitting={submitting}
-              submitLabel={editing ? "Save Circular" : "Publish Circular"}
+              submitLabel={editing ? "Save Broadcast" : "Publish Broadcast"}
             >
               <FormGrid>
                 <Field label="Title" value={form.title} onChange={(value) => onChange("title", value)} />
                 <Field label="Audience" value={form.audience} onChange={(value) => onChange("audience", value)} />
                 <SelectField label="Type" value={form.type} options={["Holiday Circular", "Urgent Closure", "Fee Due Reminder", "General Circular"]} onChange={(value) => onChange("type", value)} />
+                <SelectField label="Delivery Mode" value={form.deliveryMode} options={["Instant", "Scheduled"]} onChange={(value) => onChange("deliveryMode", value)} />
                 <Field label="Date" type="date" value={form.date} onChange={(value) => onChange("date", value)} />
+                <Field label="Schedule Date & Time" type="datetime-local" value={form.scheduledAt} onChange={(value) => onChange("scheduledAt", value)} />
                 <Field label="Document Name" value={form.documentName} onChange={(value) => onChange("documentName", value)} />
                 <FileField label="Upload PDF / Image / DOCX" accept=".pdf,.doc,.docx,image/*" onChange={onFileChange} />
                 <TextAreaField label="Content" value={form.content} onChange={(value) => onChange("content", value)} />
                 <SelectField label="Status" value={form.status} options={["Published", "Draft"]} onChange={(value) => onChange("status", value)} />
               </FormGrid>
+              <div className="mt-6 rounded-[1.5rem] bg-slate-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Role-Based Targeting</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {notificationTargetOptions.map((option) => {
+                    const active = (form.targetRoles || []).includes(option.id);
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          onChange(
+                            "targetRoles",
+                            active ? (form.targetRoles || []).filter((item) => item !== option.id) : [...(form.targetRoles || []), option.id]
+                          )
+                        }
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${active ? "bg-brand-navy text-white" : "bg-white text-slate-600"}`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </CrudPanel>
           }
         />
@@ -2689,8 +2771,11 @@ function mapItemToForm(section, item) {
       return {
         title: item.title || "",
         audience: item.audience || "",
-        type: item.type || "Circular",
+        type: item.type || "General Circular",
+        targetRoles: item.targetRoles || ["teacher"],
+        deliveryMode: item.deliveryMode || "Instant",
         date: item.date || "",
+        scheduledAt: item.scheduledAt || "",
         documentName: item.documentName || "",
         documentType: item.documentType || "",
         documentData: item.documentData || "",
