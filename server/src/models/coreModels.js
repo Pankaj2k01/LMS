@@ -42,6 +42,24 @@ const studentSchema = new Schema(
     tcIssued: { type: String, default: "No" },
     alumniStatus: { type: String, default: "Active" },
     promotedTo: { type: String, default: "" },
+    academicRecords: {
+      type: [
+        new Schema(
+          {
+            academicYear: { type: String, default: "" },
+            className: { type: String, default: "" },
+            resultStatus: { type: String, default: "" },
+            attendance: { type: Number, default: 0 },
+            leaveCount: { type: Number, default: 0 },
+            holidayCount: { type: Number, default: 0 },
+            resultFileName: { type: String, default: "" },
+            resultFileData: { type: String, default: "" }
+          },
+          { _id: false }
+        )
+      ],
+      default: []
+    },
     documentUploads: {
       type: [
         new Schema(
@@ -64,7 +82,9 @@ const studentSchema = new Schema(
 const staffSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
+    employeeId: { type: String, default: "" },
     name: { type: String, required: true },
+    portalRole: { type: String, default: "teacher" },
     designation: { type: String, required: true },
     department: { type: String, required: true },
     qualification: { type: String, default: "Not specified" },
@@ -205,14 +225,30 @@ const timetableSchema = new Schema(
   { timestamps: true }
 );
 
+const supportTicketSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    requester: { type: String, required: true },
+    requesterRole: { type: String, default: "" },
+    issue: { type: String, required: true },
+    description: { type: String, default: "" },
+    priority: { type: String, default: "Medium" },
+    status: { type: String, default: "Open" },
+    assignedTo: { type: String, default: "Support Team" }
+  },
+  { timestamps: true }
+);
+
 const userSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
+    username: { type: String, default: "", index: true },
     email: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
     role: { type: String, required: true },
     linkedStudentId: { type: String, default: "" },
+    linkedStaffId: { type: String, default: "" },
     accessPermissions: { type: [String], default: [] },
     responsibilities: { type: String, default: "" },
     phone: { type: String, default: "" },
@@ -233,4 +269,5 @@ export const ExamModel = models.Exam || model("Exam", examSchema);
 export const ResultModel = models.Result || model("Result", resultSchema);
 export const AttendanceRecordModel = models.AttendanceRecord || model("AttendanceRecord", attendanceRecordSchema);
 export const TimetableModel = models.Timetable || model("Timetable", timetableSchema);
+export const SupportTicketModel = models.SupportTicket || model("SupportTicket", supportTicketSchema);
 export const UserModel = models.User || model("User", userSchema);

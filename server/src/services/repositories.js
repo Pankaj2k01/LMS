@@ -8,6 +8,7 @@ import {
   mockLeaves,
   mockResults,
   mockStaff,
+  mockSupportTickets,
   mockStudents,
   mockTenants,
   mockTimetable,
@@ -23,6 +24,7 @@ import {
   ResultModel,
   StaffModel,
   StudentModel,
+  SupportTicketModel,
   TenantModel,
   TimetableModel,
   UserModel
@@ -50,5 +52,6 @@ export const repositories = {
   fees: createRepository({ model: FeeModel, collection: mockFees }),
   announcements: createRepository({ model: AnnouncementModel, collection: mockAnnouncements }),
   homework: createRepository({ model: HomeworkModel, collection: mockHomework }),
-  leaves: createRepository({ model: LeaveModel, collection: mockLeaves })
+  leaves: createRepository({ model: LeaveModel, collection: mockLeaves }),
+  supportTickets: createRepository({ model: SupportTicketModel, collection: mockSupportTickets })
 };

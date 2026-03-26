@@ -5,7 +5,11 @@ import { repositories } from "../services/repositories.js";
 
 export async function loginController(req, res) {
   const { email, password } = req.body;
-  const user = (await repositories.users.findOne({ email })) || mockUsers.find((item) => item.email === email);
+  const loginId = String(email || "").trim();
+  const user =
+    (await repositories.users.findOne({ email: loginId })) ||
+    (await repositories.users.findOne({ username: loginId })) ||
+    mockUsers.find((item) => item.email === loginId || item.username === loginId);
 
   if (!user) {
     return res.status(401).json({ message: "Invalid email or password" });
@@ -26,9 +30,11 @@ export async function loginController(req, res) {
     user: {
       id: user.id,
       name: user.name,
+      username: user.username || user.email,
       email: user.email,
       role: user.role,
       linkedStudentId: user.linkedStudentId || "",
+      linkedStaffId: user.linkedStaffId || "",
       accessPermissions: user.accessPermissions || [],
       responsibilities: user.responsibilities || "",
       phone: user.phone,
@@ -48,9 +54,11 @@ export async function meController(req, res) {
   return res.json({
     id: user.id,
     name: user.name,
+    username: user.username || user.email,
     email: user.email,
     role: user.role,
     linkedStudentId: user.linkedStudentId || "",
+    linkedStaffId: user.linkedStaffId || "",
     accessPermissions: user.accessPermissions || [],
     responsibilities: user.responsibilities || "",
     phone: user.phone,

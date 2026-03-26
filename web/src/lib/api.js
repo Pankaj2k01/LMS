@@ -55,6 +55,11 @@ export async function fetchUsers() {
   return data;
 }
 
+export async function fetchStaff() {
+  const { data } = await api.get("/staff");
+  return data;
+}
+
 export async function updateUserAccess(id, payload) {
   const { data } = await api.put(`/users/${id}/access`, payload);
   return data;
@@ -77,6 +82,7 @@ async function deleteResource(path) {
 
 export const createTenant = (payload) => createResource("/tenants", payload);
 export const createStudent = (payload) => createResource("/students", payload);
+export const createStaff = (payload) => createResource("/staff", payload);
 export const createAttendanceRecord = (payload) => createResource("/attendance-records", payload);
 export const createTimetableEntry = (payload) => createResource("/timetable", payload);
 export const createExam = (payload) => createResource("/exams", payload);
@@ -85,8 +91,10 @@ export const createFee = (payload) => createResource("/fees", payload);
 export const createAnnouncement = (payload) => createResource("/announcements", payload);
 export const createHomework = (payload) => createResource("/homework", payload);
 export const createLeave = (payload) => createResource("/leaves", payload);
+export const createSupportTicket = (payload) => createResource("/support-tickets", payload);
 export const updateTenant = (id, payload) => updateResource(`/tenants/${id}`, payload);
 export const updateStudent = (id, payload) => updateResource(`/students/${id}`, payload);
+export const updateStaff = (id, payload) => updateResource(`/staff/${id}`, payload);
 export const updateAttendanceRecord = (id, payload) => updateResource(`/attendance-records/${id}`, payload);
 export const updateTimetableEntry = (id, payload) => updateResource(`/timetable/${id}`, payload);
 export const updateExam = (id, payload) => updateResource(`/exams/${id}`, payload);
@@ -99,6 +107,7 @@ export const payFee = (id, payload = {}) => updateResource(`/fees/${id}/pay`, pa
 export const submitHomework = (id, payload) => updateResource(`/homework/${id}/submit`, payload);
 export const deleteTenant = (id) => deleteResource(`/tenants/${id}`);
 export const deleteStudent = (id) => deleteResource(`/students/${id}`);
+export const deleteStaff = (id) => deleteResource(`/staff/${id}`);
 export const deleteAttendanceRecord = (id) => deleteResource(`/attendance-records/${id}`);
 export const deleteTimetableEntry = (id) => deleteResource(`/timetable/${id}`);
 export const deleteExam = (id) => deleteResource(`/exams/${id}`);

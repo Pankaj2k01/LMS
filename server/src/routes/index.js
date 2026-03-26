@@ -1,13 +1,56 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import authRoutes from "./authRoutes.js";
 import { createPlatformRoutes } from "./platformRoutes.js";
 import { createCrudRouter } from "./crudRoutes.js";
 import { repositories } from "../services/repositories.js";
 import { authMiddleware, requireRoles } from "../middleware/auth.js";
-import { withAsync } from "../utils/validation.js";
+import { validateRequiredFields, withAsync } from "../utils/validation.js";
 
 function numberValue(value, fallback = 0) {
   return Number(value ?? fallback);
+}
+
+function slugifyUsername(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 24);
+}
+
+async function createLinkedUserAccount({
+  username,
+  name,
+  role,
+  linkedStudentId = "",
+  linkedStaffId = "",
+  campus = "Rahul Education Campus",
+  avatar = ""
+}) {
+  const existing =
+    (await repositories.users.findOne({ username })) ||
+    (await repositories.users.findOne({ email: `${username}@educore.local` }));
+
+  if (existing) {
+    return existing;
+  }
+
+  return repositories.users.create({
+    id: `user-${Date.now()}`,
+    name,
+    username,
+    email: `${username}@educore.local`,
+    password: await bcrypt.hash(username, 10),
+    role,
+    linkedStudentId,
+    linkedStaffId,
+    accessPermissions: [],
+    responsibilities: "",
+    phone: "",
+    campus,
+    avatar
+  });
 }
 
 export function createApiRouter(getDbStatus) {
@@ -15,6 +58,129 @@ export function createApiRouter(getDbStatus) {
 
   router.use("/auth", authRoutes);
   router.use("/", createPlatformRoutes(getDbStatus));
+
+  router.post(
+    "/students",
+    authMiddleware,
+    requireRoles("super_admin", "school_admin", "vice_principal"),
+    validateRequiredFields(["admissionNo", "name", "className", "parentName"]),
+    withAsync(async (req, res) => {
+      const record = {
+        id: `stu-${Date.now()}`,
+        admissionNo: req.body.admissionNo,
+        applicationNo: req.body.applicationNo || "",
+        name: req.body.name,
+        className: req.body.className,
+        parentName: req.body.parentName,
+        admissionDate: req.body.admissionDate || "",
+        academicHistory: req.body.academicHistory || "",
+        attendance: numberValue(req.body.attendance),
+        feesDue: numberValue(req.body.feesDue),
+        performance: req.body.performance || "Pending",
+        transportRoute: req.body.transportRoute || "Not assigned",
+        busStop: req.body.busStop || "",
+        busTrackingStatus: req.body.busTrackingStatus || "",
+        medical: req.body.medical || "Not updated",
+        bloodGroup: req.body.bloodGroup || "",
+        emergencyContact: req.body.emergencyContact || "",
+        siblingName: req.body.siblingName || "",
+        siblingClass: req.body.siblingClass || "",
+        tcIssued: req.body.tcIssued || "No",
+        alumniStatus: req.body.alumniStatus || "Active",
+        promotedTo: req.body.promotedTo || "",
+        documentUploads: Array.isArray(req.body.documentUploads) ? req.body.documentUploads : [],
+        documents: numberValue(req.body.documents ?? (Array.isArray(req.body.documentUploads) ? req.body.documentUploads.length : 0)),
+        avatar:
+          req.body.avatar ||
+          "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=300&q=80"
+      };
+
+      const created = await repositories.students.create(record);
+      const username = String(req.body.portalUsername || req.body.admissionNo || "").trim();
+      await createLinkedUserAccount({
+        username,
+        name: record.name,
+        role: "student",
+        linkedStudentId: record.id,
+        campus: "Rahul Education Campus",
+        avatar: record.avatar
+      });
+
+      res.status(201).json({
+        ...created,
+        portalUsername: username,
+        initialPassword: username
+      });
+    })
+  );
+
+  router.post(
+    "/staff",
+    authMiddleware,
+    requireRoles("super_admin", "school_admin", "vice_principal"),
+    validateRequiredFields(["employeeId", "name", "designation", "department", "portalRole"]),
+    withAsync(async (req, res) => {
+      const record = {
+        id: `staff-${Date.now()}`,
+        employeeId: req.body.employeeId,
+        name: req.body.name,
+        portalRole: req.body.portalRole,
+        designation: req.body.designation,
+        department: req.body.department,
+        qualification: req.body.qualification || "Not specified",
+        workload: req.body.workload || "To be assigned",
+        leaveBalance: numberValue(req.body.leaveBalance),
+        classes: req.body.classes || "Institution-wide"
+      };
+
+      const created = await repositories.staff.create(record);
+      const username = String(req.body.portalUsername || req.body.employeeId || slugifyUsername(req.body.name)).trim();
+      await createLinkedUserAccount({
+        username,
+        name: record.name,
+        role: req.body.portalRole,
+        linkedStaffId: record.id,
+        campus: "Rahul Education Campus"
+      });
+
+      res.status(201).json({
+        ...created,
+        portalUsername: username,
+        initialPassword: username
+      });
+    })
+  );
+
+  router.use(
+    "/support-tickets",
+    createCrudRouter({
+      repository: repositories.supportTickets,
+      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher", "student"],
+      createRoles: ["super_admin", "school_admin", "vice_principal", "teacher", "student"],
+      updateRoles: ["super_admin", "school_admin", "vice_principal"],
+      deleteRoles: ["super_admin", "school_admin"],
+      requiredFields: ["requester", "requesterRole", "issue", "description"],
+      buildRecord: (body) => ({
+        id: `sup-${Date.now()}`,
+        requester: body.requester,
+        requesterRole: body.requesterRole,
+        issue: body.issue,
+        description: body.description || "",
+        priority: body.priority || "Medium",
+        status: body.status || "Open",
+        assignedTo: body.assignedTo || "Support Team"
+      }),
+      buildUpdates: (body) => ({
+        requester: body.requester,
+        requesterRole: body.requesterRole,
+        issue: body.issue,
+        description: body.description || "",
+        priority: body.priority || "Medium",
+        status: body.status || "Open",
+        assignedTo: body.assignedTo || "Support Team"
+      })
+    })
+  );
 
   router.put(
     "/fees/:id/pay",
@@ -108,6 +274,41 @@ export function createApiRouter(getDbStatus) {
   );
 
   router.use(
+    "/staff",
+    createCrudRouter({
+      repository: repositories.staff,
+      listRoles: ["super_admin", "school_admin", "vice_principal"],
+      createRoles: ["super_admin", "school_admin", "vice_principal"],
+      updateRoles: ["super_admin", "school_admin", "vice_principal"],
+      deleteRoles: ["super_admin", "school_admin"],
+      requiredFields: ["employeeId", "name", "designation", "department", "portalRole"],
+      buildRecord: (body) => ({
+        id: `staff-${Date.now()}`,
+        employeeId: body.employeeId,
+        name: body.name,
+        portalRole: body.portalRole || "teacher",
+        designation: body.designation,
+        department: body.department,
+        qualification: body.qualification || "Not specified",
+        workload: body.workload || "To be assigned",
+        leaveBalance: numberValue(body.leaveBalance),
+        classes: body.classes || "Institution-wide"
+      }),
+      buildUpdates: (body) => ({
+        employeeId: body.employeeId,
+        name: body.name,
+        portalRole: body.portalRole || "teacher",
+        designation: body.designation,
+        department: body.department,
+        qualification: body.qualification || "Not specified",
+        workload: body.workload || "To be assigned",
+        leaveBalance: numberValue(body.leaveBalance),
+        classes: body.classes || "Institution-wide"
+      })
+    })
+  );
+
+  router.use(
     "/students",
     createCrudRouter({
       repository: repositories.students,
@@ -139,6 +340,7 @@ export function createApiRouter(getDbStatus) {
         tcIssued: body.tcIssued || "No",
         alumniStatus: body.alumniStatus || "Active",
         promotedTo: body.promotedTo || "",
+        academicRecords: Array.isArray(body.academicRecords) ? body.academicRecords : [],
         documentUploads: Array.isArray(body.documentUploads) ? body.documentUploads : [],
         documents: numberValue(body.documents ?? (Array.isArray(body.documentUploads) ? body.documentUploads.length : 0)),
         avatar:
@@ -167,6 +369,7 @@ export function createApiRouter(getDbStatus) {
         tcIssued: body.tcIssued || "No",
         alumniStatus: body.alumniStatus || "Active",
         promotedTo: body.promotedTo || "",
+        academicRecords: Array.isArray(body.academicRecords) ? body.academicRecords : [],
         documentUploads: Array.isArray(body.documentUploads) ? body.documentUploads : [],
         documents: numberValue(body.documents ?? (Array.isArray(body.documentUploads) ? body.documentUploads.length : 0)),
         avatar:

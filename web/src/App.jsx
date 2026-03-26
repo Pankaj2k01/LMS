@@ -42,7 +42,9 @@ import {
   createHomework,
   createLeave,
   createResult,
+  createStaff,
   createStudent,
+  createSupportTicket,
   createTimetableEntry,
   deleteAnnouncement,
   deleteAttendanceRecord,
@@ -51,6 +53,7 @@ import {
   deleteHomework,
   deleteLeave,
   deleteResult,
+  deleteStaff,
   deleteStudent,
   deleteTimetableEntry,
   fetchCurrentUser,
@@ -70,6 +73,7 @@ import {
   updateHomework,
   updateLeave,
   updateResult,
+  updateStaff,
   updateStudent,
   updateTimetableEntry,
   updateUserAccess,
@@ -78,21 +82,30 @@ import {
 const navigation = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "sis", label: "Students", icon: Users },
+  { id: "staff", label: "Staff", icon: Briefcase },
   { id: "attendance", label: "Attendance", icon: CheckSquare },
   { id: "exams", label: "Exams & Results", icon: GraduationCap },
   { id: "fees", label: "Fee Management", icon: CreditCard },
   { id: "homework", label: "Homework", icon: BookOpen },
+  { id: "transport", label: "Transport", icon: Bus },
+  { id: "content", label: "Academic Content", icon: SquareLibrary },
+  { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "communication", label: "Notifications", icon: Megaphone },
   { id: "leave", label: "Leave Applications", icon: ClipboardList },
+  { id: "support", label: "Help & Support", icon: Ticket },
   { id: "settings", label: "Settings", icon: Settings }
 ];
 
 const moduleAccessOptions = [
   { id: "sis", label: "Students" },
+  { id: "staff", label: "Staff" },
   { id: "attendance", label: "Attendance" },
   { id: "exams", label: "Exams & Results" },
   { id: "fees", label: "Fee Management" },
   { id: "homework", label: "Homework" },
+  { id: "transport", label: "Transport" },
+  { id: "content", label: "Academic Content" },
+  { id: "reports", label: "Reports" },
   { id: "communication", label: "Notifications" },
   { id: "leave", label: "Leave Applications" }
 ];
@@ -108,13 +121,13 @@ const roleTabs = {
   super_admin: navigation.map((item) => item.id),
   school_admin: navigation.map((item) => item.id),
   vice_principal: navigation.map((item) => item.id),
-  teacher: navigation.map((item) => item.id),
+  teacher: ["overview", "sis", "attendance", "exams", "fees", "homework", "content", "reports", "communication", "leave", "support", "settings"],
   support_agent: ["settings"],
   accountant: ["settings"],
   librarian: ["settings"],
   parent: ["settings"],
-  student: ["overview", "sis", "attendance", "exams", "fees", "homework", "communication", "leave", "settings"],
-  transport_staff: ["settings"]
+  student: ["overview", "sis", "attendance", "exams", "fees", "homework", "transport", "content", "communication", "leave", "support", "settings"],
+  transport_staff: ["overview", "transport", "support", "settings"]
 };
 
 const loginNotes = [
@@ -158,10 +171,24 @@ const initialForms = {
     tcIssued: "No",
     alumniStatus: "Active",
     promotedTo: "",
+    portalUsername: "",
+    academicRecords: [],
     attendance: "",
     performance: "Pending",
     documents: "",
     documentUploads: []
+  },
+  staff: {
+    employeeId: "",
+    name: "",
+    portalRole: "teacher",
+    designation: "",
+    department: "",
+    qualification: "",
+    workload: "",
+    leaveBalance: "",
+    classes: "",
+    portalUsername: ""
   },
   attendance: { className: "", date: "", present: "", absent: "", late: "", markedBy: "" },
   timetable: { className: "", day: "Monday", period: "", subject: "", teacher: "", room: "" },
@@ -211,6 +238,7 @@ const currency = (value) =>
 
 const sectionTitles = {
   student: "Student",
+  staff: "Staff Member",
   attendance: "Attendance",
   exam: "Exam",
   result: "Result",
@@ -239,19 +267,25 @@ const getAccessibleTabsForUser = (user) => {
 
   const assignedTabs = Array.isArray(user.accessPermissions) && user.accessPermissions.length > 0 ? user.accessPermissions : baseTabs;
   const filtered = baseTabs.filter((tab) => assignedTabs.includes(tab) || ["overview", "settings"].includes(tab));
-  return [...new Set(["overview", ...filtered, "settings"])];
+  const roleEnhancements = baseTabs.filter((tab) => ["transport", "content", "reports", "support"].includes(tab));
+  return [...new Set(["overview", ...filtered, ...roleEnhancements, "settings"])];
 };
 
 const getPageMeta = (activeTab) => {
   const labels = {
     overview: { title: "Dashboard", subtitle: "Role-based overview of academic and operational activity." },
     sis: { title: "Students", subtitle: "Student profiles, fee status, and class-level details." },
+    staff: { title: "Staff", subtitle: "Staff profiles, roles, responsibilities, and portal access." },
     attendance: { title: "Attendance", subtitle: "Daily attendance entries and class attendance history." },
     exams: { title: "Examinations", subtitle: "Exam schedules, result status, and academic performance." },
     fees: { title: "Fee Management", subtitle: "Collection, dues, receipts, and payment status." },
     homework: { title: "Homework", subtitle: "Assignments, due dates, and submission tracking." },
-  communication: { title: "Notifications", subtitle: "Broadcast circulars, announcements, and notices." },
+    transport: { title: "Transport", subtitle: "Routes, bus tracking, ETA, and assigned transport details." },
+    content: { title: "Academic Content", subtitle: "Syllabus progress, study resources, and chapter completion." },
+    reports: { title: "Reports", subtitle: "Operational and academic reports with export-ready views." },
+    communication: { title: "Notifications", subtitle: "Broadcast circulars, announcements, and notices." },
     leave: { title: "Leave", subtitle: "Leave requests, approvals, and status tracking." },
+    support: { title: "Help & Support", subtitle: "Support contacts, ticket queue, and platform assistance." },
     settings: { title: "Settings", subtitle: "Account access and system configuration." }
   };
 
@@ -386,6 +420,7 @@ function App() {
   const [forms, setForms] = useState(initialForms);
   const [editing, setEditing] = useState({
     student: null,
+    staff: null,
     attendance: null,
     timetable: null,
     exam: null,
@@ -586,8 +621,14 @@ function App() {
         await updateAction(editing[section], payload);
         setSuccessMessage(`${sectionTitles[section]} updated successfully.`);
       } else {
-        await createAction(payload);
-        setSuccessMessage(`${sectionTitles[section]} created successfully.`);
+        const created = await createAction(payload);
+        if (created?.portalUsername && created?.initialPassword) {
+          setSuccessMessage(
+            `${sectionTitles[section]} created successfully. First login username: ${created.portalUsername} | password: ${created.initialPassword}`
+          );
+        } else {
+          setSuccessMessage(`${sectionTitles[section]} created successfully.`);
+        }
       }
       await loadAppData();
       resetForm(section);
@@ -602,18 +643,19 @@ function App() {
     logout();
     setCurrentUser(null);
     setDashboard(null);
-        setPlatform(null);
+    setPlatform(null);
     setRoles([]);
     setUsers([]);
     setIntegrations(null);
-        setForms(initialForms);
-        setEditing({
-          student: null,
-          attendance: null,
-          timetable: null,
-          exam: null,
-          result: null,
-          fee: null,
+    setForms(initialForms);
+    setEditing({
+      student: null,
+      staff: null,
+      attendance: null,
+      timetable: null,
+      exam: null,
+      result: null,
+      fee: null,
       announcement: null,
       homework: null,
       leave: null
@@ -643,6 +685,7 @@ function App() {
             onSubmit={() =>
               saveSection("student", createStudent, updateStudent, (payload) => ({
                 ...payload,
+                portalUsername: payload.portalUsername || payload.admissionNo || "",
                 documents: Number(payload.documents || (payload.documentUploads || []).length || 0),
                 feesDue: Number(payload.feesDue || 0),
                 attendance: Number(payload.attendance || 0),
@@ -653,6 +696,27 @@ function App() {
             onDelete={(id) => handleDelete("student", deleteStudent, id)}
             onCancel={() => resetForm("student")}
             submitting={submitting === "student"}
+          />
+        );
+      case "staff":
+        return (
+          <StaffSection
+            staff={platform.staff || []}
+            roles={roles}
+            form={forms.staff}
+            editing={Boolean(editing.staff)}
+            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            onChange={(field, value) => updateForm("staff", field, value)}
+            onSubmit={() =>
+              saveSection("staff", createStaff, updateStaff, (payload) => ({
+                ...payload,
+                leaveBalance: Number(payload.leaveBalance || 0)
+              }))
+            }
+            onEdit={(item) => startEdit("staff", item)}
+            onDelete={(id) => handleDelete("staff", deleteStaff, id)}
+            onCancel={() => resetForm("staff")}
+            submitting={submitting === "staff"}
           />
         );
       case "attendance":
@@ -814,6 +878,12 @@ function App() {
             }}
           />
         );
+      case "transport":
+        return <TransportSection transport={platform.transport || []} role={currentUser?.role} />;
+      case "content":
+        return <ContentSection content={platform.content || []} role={currentUser?.role} />;
+      case "reports":
+        return <ReportsSection reports={platform.reports || []} stats={platform.stats} role={currentUser?.role} />;
       case "communication":
         return (
           <CommunicationSection
@@ -854,6 +924,8 @@ function App() {
             currentUser={currentUser}
           />
         );
+      case "support":
+        return <SupportSection tickets={platform.supportTickets || []} currentUser={currentUser} />;
       case "settings":
         return (
           <SettingsSection
@@ -972,7 +1044,11 @@ function App() {
                     })}
                   </p>
                 </div>
-                <button type="button" className="rounded-2xl bg-brand-navy p-3 text-white shadow-panel">
+                <button
+                  type="button"
+                  className="rounded-2xl bg-brand-navy p-3 text-white shadow-panel"
+                  onClick={() => setActiveTab("communication")}
+                >
                   <Bell size={18} />
                 </button>
               </div>
@@ -1002,7 +1078,7 @@ function LoginScreen({ onSubmit, error, loading }) {
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">EduCore</p>
-              <h1 className="text-3xl font-bold text-brand-slate">Teacher & Management Portal</h1>
+              <h1 className="text-3xl font-bold text-brand-slate">School LMS Portal</h1>
             </div>
           </div>
           <p className="mt-6 text-sm leading-7 text-slate-600">
@@ -1029,7 +1105,7 @@ function LoginScreen({ onSubmit, error, loading }) {
             </div>
           </div>
           <form className="mt-8 space-y-4" onSubmit={onSubmit}>
-            <Field label="Email" name="email" type="email" />
+            <Field label="Email or Username" name="email" type="text" />
             <Field label="Password" name="password" type="password" />
             {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
             <button
@@ -1041,7 +1117,7 @@ function LoginScreen({ onSubmit, error, loading }) {
             </button>
           </form>
           <div className="mt-6 rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600">
-            Test access can be used during review. Production accounts should be managed inside EduCore user administration.
+            Accounts are managed from EduCore administration. Newly created student and staff accounts use their assigned username as the first login password.
           </div>
         </section>
       </div>
@@ -1121,7 +1197,7 @@ function OverviewSection({ dashboard, platform }) {
 function SuperAdminSection({ stats, tenants, tickets, featureFlags, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting }) {
   return (
     <section className="mt-6 space-y-6">
-      <Panel title="Super Admin Dashboard" subtitle="Platform-wide control for onboarding, subscriptions, billing, support, and health">
+      <Panel title="Super Admin Dashboard" subtitle="System-wide oversight for institutions, support, billing visibility, and platform health">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <KpiTile label="Active Schools" value="104" hint="Out of 128 total tenants" />
           <KpiTile label="Trial Schools" value="16" hint="High conversion opportunity" />
@@ -1376,9 +1452,13 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
                 <SelectField label="TC Issued" value={form.tcIssued} options={["No", "Yes"]} onChange={(value) => onChange("tcIssued", value)} />
                 <SelectField label="Alumni Status" value={form.alumniStatus} options={["Active", "Promoted", "Alumni"]} onChange={(value) => onChange("alumniStatus", value)} />
                 <Field label="Promoted To" value={form.promotedTo} onChange={(value) => onChange("promotedTo", value)} />
+                <Field label="Portal Username" value={form.portalUsername || form.admissionNo} onChange={(value) => onChange("portalUsername", value)} />
                 <FileFieldMultiple label="Upload Student Documents" accept=".pdf,.doc,.docx,image/*" onChange={onDocumentUpload} />
                 <TextAreaField label="Academic History" value={form.academicHistory} onChange={(value) => onChange("academicHistory", value)} />
               </FormGrid>
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                First-time login for new students uses the portal username as the password. If left blank, the admission number is used.
+              </div>
             </CrudPanel>
           )
         }
@@ -1415,6 +1495,8 @@ function StaffSection({ staff, roles, form, editing, canManage, onChange, onSubm
                     <ActionButtons canManage={canManage} onEdit={() => onEdit(member)} onDelete={() => onDelete(member.id)} busy={submitting} />
                   </div>
                   <div className="mt-4 space-y-2 text-sm text-slate-600">
+                    <p>Employee ID: {member.employeeId || "-"}</p>
+                    <p>Portal Role: {formatRoleLabel(member.portalRole || "teacher")}</p>
                     <p>Qualification: {member.qualification}</p>
                     <p>Workload: {member.workload}</p>
                     <p>Assignments: {member.classes}</p>
@@ -1437,18 +1519,24 @@ function StaffSection({ staff, roles, form, editing, canManage, onChange, onSubm
             submitLabel={editing ? "Save Staff" : "Create Staff"}
           >
             <FormGrid>
+              <Field label="Employee ID" value={form.employeeId} onChange={(value) => onChange("employeeId", value)} />
               <Field label="Name" value={form.name} onChange={(value) => onChange("name", value)} />
+              <SelectField label="Portal Role" value={form.portalRole} options={["teacher", "accountant", "librarian", "transport_staff", "vice_principal", "school_admin"]} onChange={(value) => onChange("portalRole", value)} />
               <Field label="Designation" value={form.designation} onChange={(value) => onChange("designation", value)} />
               <Field label="Department" value={form.department} onChange={(value) => onChange("department", value)} />
               <Field label="Qualification" value={form.qualification} onChange={(value) => onChange("qualification", value)} />
               <Field label="Workload" value={form.workload} onChange={(value) => onChange("workload", value)} />
               <Field label="Leave Balance" type="number" value={form.leaveBalance} onChange={(value) => onChange("leaveBalance", value)} />
               <Field label="Class Assignment" value={form.classes} onChange={(value) => onChange("classes", value)} />
+              <Field label="Portal Username" value={form.portalUsername} onChange={(value) => onChange("portalUsername", value)} />
             </FormGrid>
+            <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+              First-time login for new staff uses the portal username as the password.
+            </div>
           </CrudPanel>
         }
       />
-      <Panel title="Role Matrix" subtitle="Platform and institution access configuration">
+      <Panel title="Role Matrix" subtitle="School access configuration and role permissions">
         <div className="grid gap-4 lg:grid-cols-2">
           {roles.map((role) => (
             <div key={role.role} className="rounded-[1.75rem] border border-slate-100 bg-white p-5">
@@ -1510,6 +1598,14 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
           right={
             <Panel title="Recent Attendance Dates" subtitle="Attendance entries logged by the school for your class">
               <div className="space-y-4">
+                <CalendarList
+                  items={(records || []).map((item) => ({
+                    id: item.id,
+                    date: item.date,
+                    title: item.className,
+                    description: `Marked by ${item.markedBy || "School staff"}`
+                  }))}
+                />
                 {(records || []).map((item) => (
                   <div key={item.id} className="rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600">
                     <p className="font-semibold text-brand-slate">{item.date}</p>
@@ -2043,6 +2139,14 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
     <section className="mt-6 space-y-6">
       {viewerMode ? (
         <Panel title="School Notices" subtitle="Circulars and announcements shared by the school">
+              <CalendarList
+                items={announcements.map((item) => ({
+                  id: item.id,
+                  date: item.date,
+                  title: item.title,
+                  description: item.type
+                }))}
+              />
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -2060,6 +2164,14 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
         <TwoColumn
           left={
             <Panel title="Notification & Communication" subtitle="Broadcast circulars, announcements, and delivery workflows">
+              <CalendarList
+                items={announcements.map((item) => ({
+                  id: item.id,
+                  date: item.date,
+                  title: item.title,
+                  description: item.audience
+                }))}
+              />
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -2227,13 +2339,128 @@ function ReportsSection({ reports, stats, role }) {
           <KpiTile label="Announcements" value={String(stats.announcements)} hint="Published notices and circulars" />
           <KpiTile label="Assignments" value={String(stats.activeAssignments)} hint="Currently active homework items" />
           <KpiTile label="Pending Leaves" value={String(stats.pendingLeaves)} hint="Awaiting approvals" />
-          <KpiTile label="API P95" value={stats.apiP95} hint="Platform health benchmark" />
+          <KpiTile label="API P95" value={stats.apiP95} hint="System health benchmark" />
         </div>
       </Panel>
       <Panel title={role === "accountant" ? "Report Exports" : "Scheduled Reports"} subtitle={role === "accountant" ? "Finance-ready export schedule" : "Export-ready reporting for principals, finance teams, and admins"}>
         <SimpleTable columns={["Report", "Schedule", "Format", "Owner"]} rows={reports.map((item) => [item.report, item.schedule, item.format, item.owner])} />
       </Panel>
     </section>
+  );
+}
+
+function SupportSection({ tickets, currentUser }) {
+  const [supportForm, setSupportForm] = useState({
+    issue: "",
+    description: "",
+    priority: "Medium"
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit() {
+    setSaving(true);
+    try {
+      await createSupportTicket({
+        requester: currentUser?.name || "Portal User",
+        requesterRole: formatRoleLabel(currentUser?.role),
+        issue: supportForm.issue,
+        description: supportForm.description,
+        priority: supportForm.priority,
+        status: "Open"
+      });
+      window.location.reload();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="mt-6 space-y-6">
+      <Panel title="Help & Support" subtitle="Client handover support desk, issue queue, and product guidance">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <KpiTile label="Open Tickets" value={String((tickets || []).filter((item) => item.status === "Open").length)} hint="Active support items" />
+          <KpiTile label="In Progress" value={String((tickets || []).filter((item) => item.status === "In Progress").length)} hint="Current investigations" />
+          <KpiTile label="Support Contact" value="Live" hint="Email and WhatsApp handover support" />
+          <KpiTile label="Logged In As" value={formatRoleLabel(currentUser?.role)} hint={currentUser?.name || "Portal user"} />
+        </div>
+      </Panel>
+      <TwoColumn
+        left={
+          <Panel title="Support Queue" subtitle="Current help desk items and implementation notes">
+            <div className="space-y-4">
+              {(tickets || []).map((ticket) => (
+                <RecordCard
+                  key={ticket.id}
+                  title={ticket.issue}
+                  subtitle={`${ticket.school} • ${ticket.priority}`}
+                  details={[`Status: ${ticket.status}`]}
+                />
+              ))}
+            </div>
+          </Panel>
+        }
+        right={
+          <Panel title="Support Channels" subtitle="Reference channels for launch and client handover">
+            <div className="space-y-4 text-sm text-slate-600">
+              <div className="rounded-[1.75rem] bg-slate-50 p-5">
+                <p className="font-semibold text-brand-slate">Email Support</p>
+                <p className="mt-2">support@educore.app</p>
+              </div>
+              <div className="rounded-[1.75rem] bg-slate-50 p-5">
+                <p className="font-semibold text-brand-slate">Launch Checklist</p>
+                <p className="mt-2">Validate user creation, fee receipts, homework submissions, timetable downloads, and notifications before client handover.</p>
+              </div>
+              <div className="rounded-[1.75rem] bg-slate-50 p-5">
+                <p className="font-semibold text-brand-slate">Deployment Note</p>
+                <p className="mt-2">SMS, OTP, and live GPS features are integration-ready and should be connected with production provider credentials during deployment.</p>
+              </div>
+              <div className="rounded-[1.75rem] bg-slate-50 p-5">
+                <p className="font-semibold text-brand-slate">Raise Support Request</p>
+                <div className="mt-4 space-y-3">
+                  <Field label="Issue" value={supportForm.issue} onChange={(value) => setSupportForm((current) => ({ ...current, issue: value }))} />
+                  <SelectField
+                    label="Priority"
+                    value={supportForm.priority}
+                    options={["Low", "Medium", "High"]}
+                    onChange={(value) => setSupportForm((current) => ({ ...current, priority: value }))}
+                  />
+                  <TextAreaField label="Description" value={supportForm.description} onChange={(value) => setSupportForm((current) => ({ ...current, description: value }))} />
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={saving || !supportForm.issue || !supportForm.description}
+                    className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-blue disabled:opacity-60"
+                  >
+                    {saving ? "Submitting..." : "Submit Ticket"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        }
+      />
+    </section>
+  );
+}
+
+function CalendarList({ items }) {
+  if (!items?.length) {
+    return null;
+  }
+
+  return (
+    <div className="mb-5 rounded-[1.75rem] bg-slate-50 p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Calendar View</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-2xl bg-white p-4 text-sm text-slate-600">
+            <p className="font-semibold text-brand-slate">{item.date}</p>
+            <p className="mt-1">{item.title}</p>
+            <p className="mt-2 text-slate-500">{item.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -2549,6 +2776,12 @@ function ParentDashboard({ platform }) {
 
 function StudentDashboard({ platform }) {
   const student = (platform.students || [])[0];
+  const [selectedYear, setSelectedYear] = useState(student?.academicRecords?.[0]?.academicYear || "");
+  const academicRecord =
+    (student?.academicRecords || []).find((item) => item.academicYear === selectedYear) ||
+    (student?.academicRecords || [])[0] ||
+    null;
+
   return (
     <section className="mt-6 space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -2607,8 +2840,20 @@ function StudentDashboard({ platform }) {
         left={
           <Panel title="Academic History" subtitle="Admission records and year-to-year academic movement">
             <div className="space-y-4">
+              {(student?.academicRecords || []).length ? (
+                <div className="max-w-xs">
+                  <SelectField
+                    label="Academic Year"
+                    value={selectedYear || academicRecord?.academicYear || ""}
+                    options={(student.academicRecords || []).map((item) => item.academicYear)}
+                    onChange={setSelectedYear}
+                  />
+                </div>
+              ) : null}
               <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm leading-7 text-slate-600">
-                {student?.academicHistory || "Academic history will appear here once maintained by the school administration."}
+                {academicRecord
+                  ? `Year: ${academicRecord.academicYear}\nClass: ${academicRecord.className}\nResult: ${academicRecord.resultStatus}\nAttendance: ${academicRecord.attendance}%\nLeaves Taken: ${academicRecord.leaveCount}\nSchool Holidays: ${academicRecord.holidayCount}`
+                  : student?.academicHistory || "Academic history will appear here once maintained by the school administration."}
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-[1.75rem] bg-slate-50 p-5 text-sm text-slate-600">
@@ -2624,6 +2869,13 @@ function StudentDashboard({ platform }) {
                   <p className="mt-2"><span className="font-medium text-brand-slate">Status:</span> {student?.busTrackingStatus || "No live bus data"}</p>
                 </div>
               </div>
+              {academicRecord?.resultFileName ? (
+                <DownloadLink
+                  label="Download Academic Result"
+                  content={`Academic Year: ${academicRecord.academicYear}\nClass: ${academicRecord.className}\nResult: ${academicRecord.resultStatus}\nAttendance: ${academicRecord.attendance}%\nLeave Count: ${academicRecord.leaveCount}\nHoliday Count: ${academicRecord.holidayCount}`}
+                  filename={academicRecord.resultFileName}
+                />
+              ) : null}
             </div>
           </Panel>
         }
@@ -3170,10 +3422,25 @@ function mapItemToForm(section, item) {
         tcIssued: item.tcIssued || "No",
         alumniStatus: item.alumniStatus || "Active",
         promotedTo: item.promotedTo || "",
+        portalUsername: item.portalUsername || item.admissionNo || "",
+        academicRecords: item.academicRecords || [],
         attendance: String(item.attendance ?? ""),
         performance: item.performance || "Pending",
         documents: String(item.documents ?? ""),
         documentUploads: item.documentUploads || []
+      };
+    case "staff":
+      return {
+        employeeId: item.employeeId || "",
+        name: item.name || "",
+        portalRole: item.portalRole || "teacher",
+        designation: item.designation || "",
+        department: item.department || "",
+        qualification: item.qualification || "",
+        workload: item.workload || "",
+        leaveBalance: String(item.leaveBalance ?? ""),
+        classes: item.classes || "",
+        portalUsername: item.portalUsername || item.employeeId || ""
       };
     case "attendance":
       return {

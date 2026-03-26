@@ -2,6 +2,7 @@ export const mockUsers = [
   {
     id: "super-001",
     name: "Neha Kapoor",
+    username: "superadmin@sms.com",
     email: "superadmin@sms.com",
     password: "super123",
     role: "super_admin",
@@ -15,6 +16,7 @@ export const mockUsers = [
   {
     id: "admin-001",
     name: "Aarav Mehta",
+    username: "admin@sms.com",
     email: "admin@sms.com",
     password: "admin123",
     role: "school_admin",
@@ -28,6 +30,7 @@ export const mockUsers = [
   {
     id: "vice-001",
     name: "Rohan Kulkarni",
+    username: "vice@sms.com",
     email: "vice@sms.com",
     password: "vice123",
     role: "vice_principal",
@@ -41,6 +44,7 @@ export const mockUsers = [
   {
     id: "teacher-001",
     name: "Priya Sharma",
+    username: "teacher@sms.com",
     email: "teacher@sms.com",
     password: "teacher123",
     role: "teacher",
@@ -54,6 +58,7 @@ export const mockUsers = [
   {
     id: "student-001",
     name: "Ivan Vinod Vishwakarma",
+    username: "student@sms.com",
     email: "student@sms.com",
     password: "student123",
     role: "student",
@@ -157,6 +162,28 @@ export const mockStudents = [
     tcIssued: "No",
     alumniStatus: "Active",
     promotedTo: "Grade 4 - A",
+    academicRecords: [
+      {
+        academicYear: "2024-25",
+        className: "Grade 2 - A",
+        resultStatus: "Passed",
+        attendance: 92,
+        leaveCount: 4,
+        holidayCount: 18,
+        resultFileName: "ivan-grade-2-report-card.pdf",
+        resultFileData: ""
+      },
+      {
+        academicYear: "2025-26",
+        className: "Grade 3 - B",
+        resultStatus: "Promoted",
+        attendance: 94,
+        leaveCount: 3,
+        holidayCount: 20,
+        resultFileName: "ivan-grade-3-report-card.pdf",
+        resultFileData: ""
+      }
+    ],
     documentUploads: [
       { name: "birth-certificate.pdf", type: "application/pdf", data: "" },
       { name: "aadhaar-card.pdf", type: "application/pdf", data: "" }
@@ -188,6 +215,18 @@ export const mockStudents = [
     tcIssued: "No",
     alumniStatus: "Active",
     promotedTo: "",
+    academicRecords: [
+      {
+        academicYear: "2024-25",
+        className: "K 2 - A",
+        resultStatus: "Active",
+        attendance: 91,
+        leaveCount: 2,
+        holidayCount: 16,
+        resultFileName: "anish-k2-report-card.pdf",
+        resultFileData: ""
+      }
+    ],
     documentUploads: [{ name: "vaccination-card.pdf", type: "application/pdf", data: "" }],
     documents: 4,
     avatar:
@@ -216,6 +255,28 @@ export const mockStudents = [
     tcIssued: "No",
     alumniStatus: "Active",
     promotedTo: "Grade 9 - A",
+    academicRecords: [
+      {
+        academicYear: "2024-25",
+        className: "Grade 7 - A",
+        resultStatus: "Passed",
+        attendance: 89,
+        leaveCount: 5,
+        holidayCount: 18,
+        resultFileName: "sara-grade-7-report-card.pdf",
+        resultFileData: ""
+      },
+      {
+        academicYear: "2025-26",
+        className: "Grade 8 - A",
+        resultStatus: "Topper",
+        attendance: 88,
+        leaveCount: 3,
+        holidayCount: 20,
+        resultFileName: "sara-grade-8-report-card.pdf",
+        resultFileData: ""
+      }
+    ],
     documentUploads: [{ name: "admission-form.pdf", type: "application/pdf", data: "" }],
     documents: 6,
     avatar:
@@ -226,7 +287,9 @@ export const mockStudents = [
 export const mockStaff = [
   {
     id: "staff-001",
+    employeeId: "EMP-1001",
     name: "Priya Sharma",
+    portalRole: "teacher",
     designation: "Class Teacher",
     department: "Academics",
     qualification: "M.Sc, B.Ed",
@@ -236,7 +299,9 @@ export const mockStaff = [
   },
   {
     id: "staff-002",
+    employeeId: "EMP-1002",
     name: "Nitin Verma",
+    portalRole: "accountant",
     designation: "Accountant",
     department: "Finance",
     qualification: "B.Com",
@@ -246,7 +311,9 @@ export const mockStaff = [
   },
   {
     id: "staff-003",
+    employeeId: "EMP-1003",
     name: "Ritu Singh",
+    portalRole: "librarian",
     designation: "Librarian",
     department: "Library",
     qualification: "MLIS",

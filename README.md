@@ -1,72 +1,85 @@
 # EduCore
 
-EduCore is a school web portal focused on teacher, student, and higher-management workflows for a single school deployment.
+EduCore is a school LMS and management portal built for a single-school deployment with linked academic, operational, and support workflows.
 
-Current stack:
+## Stack
+
 - React + Tailwind CSS
 - Node.js + Express
 - MongoDB
 - JWT authentication
-- In-record file upload storage for local/demo use
+- File attachments stored on records for local deployment and review
 
-## Active Scope
+## Current Product Scope
 
-EduCore currently includes these live modules:
+EduCore currently includes these working modules:
+- Overview Dashboard
 - Student Information System
+- Staff Management
 - Attendance
 - Exams & Results
 - Fee Management
-- Homework Management
+- Homework & Assignment Management
+- Transport
+- Academic Content
+- Reports
 - Notifications / Circulars
 - Leave Applications
+- Help & Support
 - Settings / Access Control
-
-This project is currently designed around one school, not a multi-tenant SaaS release.
 
 ## Roles
 
-Supported roles in the current build:
+Supported roles:
 - `super_admin`
 - `school_admin`
 - `vice_principal`
 - `teacher`
 - `student`
 
-Role behavior:
-- `super_admin`, `school_admin`, and `vice_principal` manage school operations
-- `teacher` works with class-level academic and fee visibility
-- `student` sees only personal records and student-facing workflows
+Role intent:
+- `super_admin`: system oversight and admin access
+- `school_admin`: principal-level institutional control
+- `vice_principal`: academic and operational supervision
+- `teacher`: class-scoped academic workflows
+- `student`: self-scoped portal with linked fee, attendance, result, homework, transport, and notices
 
-## Module Details
+Parent-facing behavior is handled through the student account for the current release.
 
-### 1. Student Information System
+## Working Features
+
+### Student Information System
 
 Management can:
-- add student profiles
-- edit student details
-- assign class/section
-- maintain admission details
-- maintain academic history
+- add students
+- edit students
+- assign class and section
 - upload student documents
-- track promotion, TC, alumni status, and bus tracking
+- maintain medical info
+- maintain sibling linkage
+- manage admission details
+- track promotion
+- track TC status
+- track alumni status
+- maintain academic history
 
-Student can:
-- see only personal details
-- see admission record
-- see academic history
-- see medical and sibling details
-- see transport route, bus stop, and bus tracking
+Students can:
+- view only personal details
+- view admission record
+- view sibling and medical details
+- view transport and bus tracking details
 - download uploaded documents
+- view academic-year-wise history
 
 Included student fields:
-- student master profile
 - admission number
 - application number
+- class
 - parent name
-- class/section
 - admission date
 - academic history
-- attendance %
+- academic-year records
+- attendance
 - performance
 - fee due
 - transport route
@@ -75,11 +88,11 @@ Included student fields:
 - medical notes
 - blood group
 - emergency contact
-- sibling linkage
+- sibling info
 - TC issued
 - alumni status
 - promoted to
-- document uploads
+- uploaded documents
 
 Management-side student operations:
 - bulk import template download
@@ -87,75 +100,84 @@ Management-side student operations:
 - TC register download
 - bus tracking list download
 
-### 2. Attendance
+### Staff Management
 
-`school_admin`, `vice_principal`, and `super_admin` can:
-- view all attendance
-- create daily attendance entries
+Higher roles can:
+- add staff
+- edit staff
+- assign portal role
+- assign class responsibility
+- manage leave balance
+- manage workload
+
+When a new staff member is created:
+- a linked login account is created automatically
+- first login username defaults to `employeeId` or assigned username
+- first login password is the same as the username
+
+### Student Login Creation
+
+When a new student is created:
+- a linked login account is created automatically
+- first login username defaults to `admissionNo` or assigned username
+- first login password is the same as the username
+
+### Attendance
+
+Management can:
+- create attendance entries
 - edit attendance entries
-- delete attendance entries
+- view all attendance records
 
-`teacher` can:
-- view student attendance information for assigned class
-- view student details with academic and fee status
+Teachers can:
+- view student attendance for assigned class
 
-`student` can:
-- see only personal attendance information
-- see attendance percentage
-- see attendance-related dates logged for class
+Students can:
+- view only personal attendance-related information
+- view attendance dates in calendar-style view
 
-### 3. Exams & Results
+### Exams & Results
 
 Management can:
 - upload exam timetable
-- attach exam timetable file
-- edit and delete timetable records
+- attach timetable documents
 - create results
 - approve results
 - publish results
 
 Teachers can:
-- view exam timetable
-- download exam timetable
-- view results for assigned class
+- view class timetable
+- view assigned class results
 
 Students can:
-- view class exam timetable
-- download uploaded timetable files
-- view personal result records
+- view timetable
+- download timetable files
+- view personal results
+- download academic-year result summaries
 
-Included features:
-- week-wise timetable
-- downloadable weekly class timetable
-- downloadable exam timetable
-- result approval workflow
-
-### 4. Fee Management
+### Fee Management
 
 Management can:
 - create fee records
-- edit fee records
-- delete fee records
-- view collection and pending dashboards
-- download fee receipts
+- update fee records
+- see collection and pending summaries
+- download receipts
 
 Teachers can:
 - see fee status of students in their class
-- see paid amount
-- see pending amount
-- download fee receipts
+- see paid and pending amount
 
 Students can:
 - see only personal fee ledger
-- see total fee, paid amount, and pending amount
-- use `Pay Now` when fee is pending
+- see paid and pending amount
+- use `Pay Now` when amount is pending
 - download fee receipt
 
 Fee receipt includes:
 - receipt number
 - student name
-- class/section
-- fee category
+- class
+- category
 - total amount
 - paid amount
 - pending amount
@@ -164,58 +186,94 @@ Fee receipt includes:
 - status
 - generated date
 
-### 5. Homework Management
+### Homework & Assignments
 
 Teachers and management can:
 - create homework
 - choose `Online` or `Offline`
-- upload homework file (`PDF`, `DOC`, `DOCX`, images)
-- track submissions
-- review completion status
+- upload homework attachments
+- track submission counts
+- review student submissions
 
 Students can:
-- see only class homework
-- download homework attachment
-- for online homework, upload completed work
-- submit completed work as `PDF`, `DOC`, `DOCX`, or image
+- download homework attachments
+- upload completed work for online assignments
+- submit PDF, DOC, DOCX, or image files
 
-Teacher-side visibility:
-- teachers can see submitted student file
-- teachers can download submitted student work
-
-### 6. Notifications / Circulars
-
-EduCore includes a centralized notification broadcaster for announcements like:
-- holiday notice
-- urgent school closure
-- fee due reminder
-- general circular
+### Notifications / Circulars
 
 Features:
-- broadcast across dashboard and web portal
-- running announcement strip on the main page
-- instant or scheduled delivery
+- dashboard announcement ticker
+- notifications page
 - role-based targeting
-- file upload support for `PDF`, images, `DOC`, `DOCX`
-- document download from the notification card
+- scheduled or instant publishing
+- uploaded notice document
+- notice download
+- calendar-style announcement view
 
-### 7. Leave Applications
+Examples:
+- holiday circular
+- urgent closure notice
+- fee due reminder
+- general school circular
+
+### Transport
+
+Transport module includes:
+- route list
+- assigned route visibility
+- vehicle number
+- driver name
+- ETA
+- trip status
+
+Student transport visibility is separate from the student profile and available in the dedicated module too.
+
+### Academic Content
+
+Includes:
+- chapter-wise subject progress
+- completion percentage
+- resource counts
+- student content visibility
+
+### Reports
+
+Includes:
+- fee summaries
+- attendance-related reports
+- academic reporting views
+- export-ready tables
+
+### Leave Applications
 
 Teachers can:
 - apply for leave
 
-Students can:
-- view own leave-related status items from portal scope
-
 Management can:
-- view leave requests
-- approve or reject leave based on role hierarchy
+- review leave requests
+- approve or reject based on role hierarchy
+
+Students can:
+- view personal leave-related records from scoped portal data
+
+### Help & Support
+
+Includes:
+- support queue view
+- support contact section
+- support request form
+- ticket submission into the support list
 
 ## Authentication
 
 Auth is JWT-based.
 
-Current seeded demo accounts:
+Login supports:
+- email
+- username
+
+Current seeded access:
 - `superadmin@sms.com` / `super123`
 - `admin@sms.com` / `admin123`
 - `vice@sms.com` / `vice123`
@@ -226,12 +284,10 @@ Current seeded demo accounts:
 
 Current file-capable areas:
 - student documents
-- exam timetable file
-- notification / circular document
-- homework attachment
-- student online homework submission
-
-For now, files are stored directly on records so the app works locally without S3 or Cloudinary.
+- exam timetable files
+- notification / circular documents
+- homework attachments
+- student homework submission files
 
 ## Project Structure
 
@@ -240,11 +296,12 @@ For now, files are stored directly on records so the app works locally without S
 ├── server
 │   ├── config
 │   ├── controllers
+│   ├── data
 │   ├── middleware
 │   ├── models
 │   ├── routes
 │   ├── services
-│   └── data
+│   └── utils
 └── web
     ├── src
     └── public
@@ -253,30 +310,22 @@ For now, files are stored directly on records so the app works locally without S
 Important files:
 - `server/src/index.js`
 - `server/src/routes/index.js`
-- `server/src/controllers/platformController.js`
 - `server/src/controllers/authController.js`
+- `server/src/controllers/platformController.js`
 - `server/src/models/coreModels.js`
 - `server/src/data/mockData.js`
+- `server/src/data/persistence.js`
 - `web/src/App.jsx`
 - `web/src/lib/api.js`
 
-## Local Setup
-
-Install dependencies:
-
-```bash
-npm --prefix server install
-npm --prefix web install
-```
-
-## Environment Setup
+## Environment
 
 Create `server/.env`:
 
 ```env
 PORT=5001
 JWT_SECRET=change-this-secret
-MONGODB_URI=your-mongodb-uri
+MONGODB_URI=your_mongodb_connection_string
 CLIENT_URL=http://127.0.0.1:5174
 CLIENT_URLS=http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:5173,http://localhost:5174
 ```
@@ -287,48 +336,58 @@ Create `web/.env`:
 VITE_API_BASE_URL=http://127.0.0.1:5001/api
 ```
 
-## Run Commands
+## Run Locally
+
+Install:
+
+```bash
+npm --prefix server install
+npm --prefix web install
+```
 
 Start backend:
 
 ```bash
-npm run dev:api
+npm run start:api
 ```
 
 Start frontend:
 
 ```bash
 cd /Users/pankajnebbulalyadav/Documents/LMS/web
-npm run dev -- --host 127.0.0.1
+npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
-Frontend URL:
-- [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
+Open:
+- Frontend: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
+- Backend health: [http://127.0.0.1:5001/api/health](http://127.0.0.1:5001/api/health)
 
-Backend health URL:
-- [http://127.0.0.1:5001/api/health](http://127.0.0.1:5001/api/health)
+## Build Check
 
-## Build Commands
-
-Frontend build:
+Frontend:
 
 ```bash
+cd /Users/pankajnebbulalyadav/Documents/LMS/web
 npm run build
 ```
 
-Backend syntax check examples:
+Backend syntax checks:
 
 ```bash
 node --check server/src/routes/index.js
 node --check server/src/controllers/platformController.js
+node --check server/src/controllers/authController.js
 ```
 
-## Current Notes
+## Deployment Notes
 
-- This is the active EduCore school portal build, not the earlier broad prototype scope.
-- The UI is intentionally kept close to the current approved layout.
-- Student visibility is scoped to personal records.
-- Teacher visibility is class-scoped.
-- Management has broader operational access.
-- MongoDB-backed data is used when available.
-- If collections are empty, seed/mock data supports the initial review workflow.
+The current project is ready for local deployment and client demo / handover of the active web LMS scope.
+
+Provider-backed features still require production credentials and deployment configuration:
+- SMS gateway
+- forgot-password OTP or email reset
+- live GPS bus tracking
+- payment gateway processing
+- cloud file storage and signed delivery
+
+These areas are integration-ready in product structure, but need provider setup before they can be treated as full production services.

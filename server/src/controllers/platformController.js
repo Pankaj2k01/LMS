@@ -1,4 +1,4 @@
-import { mockAttendance, mockIntegrations, mockRoles } from "../data/mockData.js";
+import { mockAttendance, mockContent, mockIntegrations, mockLibrary, mockReports, mockRoles, mockTransport } from "../data/mockData.js";
 import { repositories } from "../services/repositories.js";
 
 export function healthController(getDbStatus) {
@@ -66,6 +66,11 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
     announcements: data.announcements,
     homework: data.homework,
     leaves: data.leaves,
+    library: mockLibrary,
+    transport: mockTransport,
+    content: mockContent,
+    reports: mockReports,
+    supportTickets: data.supportTickets,
     roles: mockRoles,
     integrations: mockIntegrations
   };
@@ -75,6 +80,7 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
       return {
         ...base,
         students: data.students,
+        staff: data.staff,
         attendanceRecords: data.attendanceRecords,
         timetable: data.timetable,
         fees: data.fees,
@@ -86,6 +92,7 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
       return {
         ...base,
         students: data.students,
+        staff: data.staff,
         attendanceRecords: data.attendanceRecords,
         timetable: data.timetable,
         fees: data.fees,
@@ -103,7 +110,9 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         timetable: data.timetable.filter((item) => classMatches(teacherClasses, item.className)),
         attendanceRecords: data.attendanceRecords.filter((item) => classMatches(teacherClasses, item.className)),
         fees: data.fees.filter((item) => classMatches(teacherClasses, item.className)),
-        leaves: data.leaves.filter((item) => item.role === "Teacher" || item.role === "Student")
+        leaves: data.leaves.filter((item) => item.role === "Teacher" || item.role === "Student"),
+        content: mockContent.filter((item) => classMatches(teacherClasses, item.className)),
+        reports: mockReports
       };
     case "student": {
       const currentStudent =
@@ -146,7 +155,9 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         timetable: data.timetable.filter((item) => item.className === className),
         attendanceRecords: data.attendanceRecords.filter((item) => item.className === className),
         fees: studentFees,
-        leaves: data.leaves.filter((item) => item.applicant === currentStudent?.name || item.role === "Student")
+        leaves: data.leaves.filter((item) => item.applicant === currentStudent?.name || item.role === "Student"),
+        transport: mockTransport.filter((item) => item.route === currentStudent?.transportRoute),
+        content: mockContent.filter((item) => item.className === className)
       };
     }
     default:
@@ -155,7 +166,7 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
 }
 
 export async function platformDataController(req, res) {
-  const [{ user, assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves] = await Promise.all([
+  const [{ user, assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves, supportTickets] = await Promise.all([
     resolveUserContext(req.user.id),
     repositories.students.list(),
     repositories.staff.list(),
@@ -166,7 +177,8 @@ export async function platformDataController(req, res) {
     repositories.fees.list(),
     repositories.homework.list(),
     repositories.announcements.list(),
-    repositories.leaves.list()
+    repositories.leaves.list(),
+    repositories.supportTickets.list()
   ]);
 
   const fullData = {
@@ -180,6 +192,7 @@ export async function platformDataController(req, res) {
     homework,
     announcements,
     leaves,
+    supportTickets,
     stats: buildStats({ students, staff, fees, homework, announcements, leaves, exams, results, attendanceRecords, timetable })
   };
 
@@ -187,7 +200,7 @@ export async function platformDataController(req, res) {
 }
 
 export async function dashboardController(req, res) {
-  const [{ user, assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves] = await Promise.all([
+  const [{ user, assignedClasses }, students, staff, attendanceRecords, timetable, exams, results, fees, homework, announcements, leaves, supportTickets] = await Promise.all([
     resolveUserContext(req.user.id),
     repositories.students.list(),
     repositories.staff.list(),
@@ -198,7 +211,8 @@ export async function dashboardController(req, res) {
     repositories.fees.list(),
     repositories.homework.list(),
     repositories.announcements.list(),
-    repositories.leaves.list()
+    repositories.leaves.list(),
+    repositories.supportTickets.list()
   ]);
 
   const fullData = {
@@ -212,6 +226,7 @@ export async function dashboardController(req, res) {
     homework,
     announcements,
     leaves,
+    supportTickets,
     stats: buildStats({ students, staff, fees, homework, announcements, leaves, exams, results, attendanceRecords, timetable })
   };
 

@@ -10,9 +10,11 @@ import {
   mockLeaves,
   mockResults,
   mockStaff,
+  mockSupportTickets,
   mockStudents,
   mockTenants,
-  mockTimetable
+  mockTimetable,
+  mockUsers
 } from "./mockData.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,7 +32,9 @@ const mutableCollections = {
   fees: mockFees,
   homework: mockHomework,
   announcements: mockAnnouncements,
-  leaves: mockLeaves
+  leaves: mockLeaves,
+  supportTickets: mockSupportTickets,
+  users: mockUsers
 };
 
 function snapshot() {
