@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { integrationSummary } from "../config/providers.js";
 import {
   dashboardController,
   healthController,
@@ -17,7 +18,7 @@ export function createPlatformRoutes(getDbStatus) {
   router.get("/platform-data", authMiddleware, withAsync(platformDataController));
   router.get("/attendance", authMiddleware, requireRoles("super_admin", "school_admin", "vice_principal", "teacher"), listStatic(staticCollections.attendance));
   router.get("/roles", authMiddleware, requireRoles("super_admin", "school_admin", "vice_principal", "teacher"), listStatic(staticCollections.roles));
-  router.get("/settings/integrations", authMiddleware, requireRoles("super_admin", "school_admin", "vice_principal"), listStatic(staticCollections.integrations));
+  router.get("/settings/integrations", authMiddleware, requireRoles("super_admin", "school_admin", "vice_principal"), (_req, res) => res.json(integrationSummary));
 
   return router;
 }

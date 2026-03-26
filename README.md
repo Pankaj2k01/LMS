@@ -136,6 +136,10 @@ Students can:
 - view only personal attendance-related information
 - view attendance dates in calendar-style view
 
+Calendar visibility:
+- open `Attendance`
+- the calendar view is shown on the attendance page
+
 ### Exams & Results
 
 Management can:
@@ -211,6 +215,10 @@ Features:
 - notice download
 - calendar-style announcement view
 
+Calendar visibility:
+- open `Notifications`
+- the calendar view is shown on the notifications page
+
 Examples:
 - holiday circular
 - urgent closure notice
@@ -272,6 +280,12 @@ Auth is JWT-based.
 Login supports:
 - email
 - username
+
+Forgot password:
+- available directly on the login screen
+- accepts email or username
+- uses backend route `POST /api/auth/forgot-password`
+- delivery depends on OTP/SMS configuration in `server/.env`
 
 Current seeded access:
 - `superadmin@sms.com` / `super123`
@@ -391,3 +405,129 @@ Provider-backed features still require production credentials and deployment con
 - cloud file storage and signed delivery
 
 These areas are integration-ready in product structure, but need provider setup before they can be treated as full production services.
+
+## Where To Change Credentials
+
+Paste production credentials in:
+- [server/.env.example](/Users/pankajnebbulalyadav/Documents/LMS/server/.env.example)
+  After copying it to `server/.env`
+
+Main config readers:
+- [server/src/config/env.js](/Users/pankajnebbulalyadav/Documents/LMS/server/src/config/env.js)
+- [server/src/config/providers.js](/Users/pankajnebbulalyadav/Documents/LMS/server/src/config/providers.js)
+
+If another developer needs to wire a provider, these are the first files to open.
+
+### Payment Gateway
+
+Edit in:
+- `server/.env`
+
+Keys:
+- `PAYMENT_GATEWAY`
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `PAYU_MERCHANT_KEY`
+- `PAYU_SALT`
+
+Where to get them:
+- Razorpay Dashboard
+- Stripe Dashboard
+- PayU Merchant Dashboard
+
+### SMS / Notification Gateway
+
+Edit in:
+- `server/.env`
+
+Keys:
+- `SMS_PROVIDER`
+- `SMS_API_KEY`
+- `SMS_SENDER_ID`
+- `SMS_BASE_URL`
+
+Where to get them:
+- MSG91
+- Textlocal
+- Twilio
+- Exotel
+
+### OTP / Forgot Password
+
+Edit in:
+- `server/.env`
+
+Keys:
+- `OTP_PROVIDER`
+- `OTP_API_KEY`
+- `OTP_TEMPLATE_ID`
+
+Where to get them:
+- your OTP provider dashboard
+- your SMS provider dashboard if OTP is delivered through SMS
+- Firebase Auth or third-party OTP service dashboard
+
+### GPS / Bus Tracking
+
+Edit in:
+- `server/.env`
+
+Keys:
+- `GPS_PROVIDER`
+- `GPS_API_KEY`
+- `GPS_BASE_URL`
+- `GPS_DEVICE_TOKEN`
+
+Where to get them:
+- GPS vendor admin portal
+- bus GPS device vendor dashboard
+
+### File Storage
+
+Edit in:
+- `server/.env`
+
+Keys:
+- `STORAGE_PROVIDER`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- `AWS_BUCKET_NAME`
+
+Where to get them:
+- Cloudinary Console
+- AWS IAM and S3 Console
+
+### Firebase / Push Notifications
+
+Edit in:
+- `server/.env`
+
+Keys:
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+
+Where to get them:
+- Firebase Console
+- Google Cloud service account credentials
+
+### School Branding / Deployment
+
+Edit in:
+- `server/.env`
+- `web/.env`
+
+Keys:
+- `SCHOOL_NAME`
+- `SCHOOL_ADDRESS`
+- `APP_BASE_URL`
+- `SUPPORT_EMAIL`
+- `SUPPORT_PHONE`
+- `VITE_API_BASE_URL`
+- `VITE_APP_NAME`

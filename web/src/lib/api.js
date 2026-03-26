@@ -19,6 +19,11 @@ export async function login(credentials) {
   return data;
 }
 
+export async function requestPasswordReset(payload) {
+  const { data } = await api.post("/auth/forgot-password", payload);
+  return data;
+}
+
 export function logout() {
   localStorage.removeItem("sms_token");
   localStorage.removeItem("sms_user");

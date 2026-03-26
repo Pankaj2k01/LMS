@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { mockUsers } from "../data/mockData.js";
 import { createToken } from "../middleware/auth.js";
 import { repositories } from "../services/repositories.js";
+import { sendPasswordResetOtp } from "../services/otpService.js";
 
 export async function loginController(req, res) {
   const { email, password } = req.body;
@@ -64,5 +65,27 @@ export async function meController(req, res) {
     phone: user.phone,
     campus: user.campus,
     avatar: user.avatar
+  });
+}
+
+export async function forgotPasswordController(req, res) {
+  const loginId = String(req.body.email || req.body.username || "").trim();
+  if (!loginId) {
+    return res.status(400).json({ message: "Email or username is required" });
+  }
+
+  const user =
+    (await repositories.users.findOne({ email: loginId })) ||
+    (await repositories.users.findOne({ username: loginId })) ||
+    mockUsers.find((item) => item.email === loginId || item.username === loginId);
+
+  if (!user) {
+    return res.status(404).json({ message: "No account found for the provided email or username" });
+  }
+
+  const otpResult = await sendPasswordResetOtp({ user });
+  return res.json({
+    ok: true,
+    ...otpResult
   });
 }

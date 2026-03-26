@@ -65,6 +65,7 @@ import {
   login,
   logout,
   payFee,
+  requestPasswordReset,
   submitHomework,
   updateAnnouncement,
   updateAttendanceRecord,
@@ -131,9 +132,9 @@ const roleTabs = {
 };
 
 const loginNotes = [
-  "This release is limited to management and teacher workflows.",
-  "Included modules: Results & Exams, Leave, Fees, Homework, and Notifications.",
-  "Secure JWT authentication with MongoDB-backed accounts."
+  "EduCore includes linked student, staff, academic, fee, notification, and support workflows.",
+  "Login supports email or username with JWT-based access control.",
+  "New student and staff accounts use assigned username as the first login password."
 ];
 
 const overviewStats = [
@@ -970,7 +971,7 @@ function App() {
             </div>
             <div className="max-w-[170px]">
               <p className="text-xs uppercase tracking-[0.3em] text-blue-200">EduCore</p>
-              <h1 className="mt-1 text-[15px] font-bold leading-[1.35]">Teacher &amp; Management Portal</h1>
+              <h1 className="mt-1 text-[15px] font-bold leading-[1.35]">EduCore</h1>
             </div>
           </div>
 
@@ -1068,6 +1069,27 @@ function App() {
 }
 
 function LoginScreen({ onSubmit, error, loading }) {
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotValue, setForgotValue] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState("");
+  const [forgotError, setForgotError] = useState("");
+
+  async function handleForgotPassword() {
+    setForgotLoading(true);
+    setForgotMessage("");
+    setForgotError("");
+
+    try {
+      const result = await requestPasswordReset({ email: forgotValue, username: forgotValue });
+      setForgotMessage(result.message || "Password reset request submitted.");
+    } catch (requestError) {
+      setForgotError(requestError?.response?.data?.message || "Unable to process forgot password request.");
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -1078,7 +1100,7 @@ function LoginScreen({ onSubmit, error, loading }) {
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">EduCore</p>
-              <h1 className="text-3xl font-bold text-brand-slate">School LMS Portal</h1>
+              <h1 className="text-3xl font-bold text-brand-slate">EduCore</h1>
             </div>
           </div>
           <p className="mt-6 text-sm leading-7 text-slate-600">
@@ -1116,6 +1138,28 @@ function LoginScreen({ onSubmit, error, loading }) {
               {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
+          <button
+            type="button"
+            onClick={() => setForgotOpen((current) => !current)}
+            className="mt-4 text-sm font-medium text-brand-blue"
+          >
+            {forgotOpen ? "Hide Forgot Password" : "Forgot Password?"}
+          </button>
+          {forgotOpen ? (
+            <div className="mt-4 rounded-[1.5rem] bg-slate-50 p-4">
+              <Field label="Registered Email or Username" value={forgotValue} onChange={setForgotValue} />
+              {forgotMessage ? <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{forgotMessage}</p> : null}
+              {forgotError ? <p className="mt-3 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{forgotError}</p> : null}
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={!forgotValue || forgotLoading}
+                className="mt-4 rounded-2xl bg-brand-navy px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {forgotLoading ? "Processing..." : "Request Password Reset"}
+              </button>
+            </div>
+          ) : null}
           <div className="mt-6 rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600">
             Accounts are managed from EduCore administration. Newly created student and staff accounts use their assigned username as the first login password.
           </div>
