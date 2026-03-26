@@ -127,14 +127,38 @@ const notificationTargetOptions = [
 const roleTabs = {
   super_admin: navigation.map((item) => item.id),
   school_admin: navigation.map((item) => item.id),
-  vice_principal: navigation.map((item) => item.id),
+  principal: ["overview", "sis", "staff", "attendance", "timetable", "exams", "fees", "communication", "reports", "leave", "support", "settings"],
+  vice_principal: ["overview", "sis", "staff", "attendance", "timetable", "exams", "fees", "communication", "reports", "leave", "support", "settings"],
+  academic_coordinator: ["overview", "staff", "attendance", "timetable", "exams", "content", "reports", "support", "settings"],
   teacher: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "content", "reports", "communication", "leave", "support", "settings"],
+  class_teacher: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "communication", "leave", "support", "settings"],
+  subject_teacher: ["overview", "sis", "timetable", "exams", "homework", "support", "settings"],
   support_agent: ["settings"],
   accountant: ["overview", "fees", "reports", "leave", "support", "settings"],
+  hr_admin: ["overview", "staff", "attendance", "leave", "reports", "support", "settings"],
   librarian: ["overview", "library", "support", "settings"],
   parent: ["settings"],
   student: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "transport", "library", "content", "communication", "leave", "support", "settings"],
-  transport_staff: ["overview", "transport", "support", "settings"]
+  transport_staff: ["overview", "transport", "support", "settings"],
+  transport_manager: ["overview", "transport", "sis", "support", "settings"],
+  driver: ["overview", "transport", "settings"],
+  support_helpdesk: ["overview", "support", "settings"]
+};
+
+const roleAccess = {
+  manageStudents: ["super_admin", "school_admin", "principal", "vice_principal"],
+  manageStaff: ["super_admin", "school_admin", "principal", "vice_principal", "hr_admin"],
+  manageAttendance: ["school_admin", "principal", "vice_principal", "class_teacher"],
+  manageTimetable: ["school_admin", "principal", "vice_principal", "academic_coordinator"],
+  manageExams: ["school_admin", "principal", "vice_principal", "academic_coordinator"],
+  manageResults: ["school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher"],
+  approveResults: ["school_admin", "principal", "vice_principal"],
+  manageFees: ["super_admin", "school_admin", "accountant"],
+  manageHomework: ["super_admin", "school_admin", "vice_principal", "class_teacher", "subject_teacher", "teacher"],
+  manageCommunication: ["super_admin", "school_admin", "principal", "vice_principal", "class_teacher"],
+  manageLeave: ["super_admin", "school_admin", "principal", "vice_principal", "class_teacher", "hr_admin"],
+  accessControl: ["school_admin"],
+  fullOverview: ["school_admin", "super_admin", "principal", "vice_principal"]
 };
 
 const loginNotes = [
@@ -268,7 +292,7 @@ const getAccessibleTabsForUser = (user) => {
     return ["overview", "settings"];
   }
 
-  if (["school_admin", "super_admin", "vice_principal"].includes(user.role)) {
+  if (["school_admin", "super_admin", "principal", "vice_principal"].includes(user.role)) {
     return baseTabs;
   }
 
@@ -691,7 +715,7 @@ function App() {
             role={currentUser?.role}
             form={forms.student}
             editing={Boolean(editing.student)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageStudents.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("student", field, value)}
             onDocumentUpload={(files) => handleMultipleFileUpload("student", files, "documentUploads")}
             onSubmit={() =>
@@ -717,7 +741,7 @@ function App() {
             roles={roles}
             form={forms.staff}
             editing={Boolean(editing.staff)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageStaff.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("staff", field, value)}
             onSubmit={() =>
               saveSection("staff", createStaff, updateStaff, (payload) => ({
@@ -739,7 +763,7 @@ function App() {
             students={platform.students || []}
             form={forms.attendance}
             editing={Boolean(editing.attendance)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageAttendance.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("attendance", field, value)}
             onSubmit={() =>
               saveSection("attendance", createAttendanceRecord, updateAttendanceRecord, (payload) => ({
@@ -763,7 +787,7 @@ function App() {
             timetable={platform.timetable || []}
             form={forms.timetable}
             editing={Boolean(editing.timetable)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageTimetable.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("timetable", field, value)}
             onSubmit={() => saveSection("timetable", createTimetableEntry, updateTimetableEntry)}
             onEdit={(item) => startEdit("timetable", item)}
@@ -785,8 +809,8 @@ function App() {
             editingExam={Boolean(editing.exam)}
             editingResult={Boolean(editing.result)}
             editingTimetable={Boolean(editing.timetable)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
-            canApproveResults={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageExams.includes(currentUser?.role)}
+            canApproveResults={roleAccess.approveResults.includes(currentUser?.role)}
             onExamChange={(field, value) => updateForm("exam", field, value)}
             onResultChange={(field, value) => updateForm("result", field, value)}
             onTimetableChange={(field, value) => updateForm("timetable", field, value)}
@@ -827,7 +851,7 @@ function App() {
             stats={platform.stats}
             form={forms.fee}
             editing={Boolean(editing.fee)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageFees.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("fee", field, value)}
             onSubmit={() =>
               saveSection("fee", createFee, updateFee, (payload) => ({
@@ -864,7 +888,7 @@ function App() {
             homework={platform.homework}
             form={forms.homework}
             editing={Boolean(editing.homework)}
-            canManage={["super_admin", "school_admin", "vice_principal", "teacher"].includes(currentUser?.role)}
+            canManage={roleAccess.manageHomework.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("homework", field, value)}
             onAttachmentChange={(file) => handleFileUpload("homework", file, { name: "attachmentName", type: "attachmentType", data: "attachmentData" })}
             onSubmit={() =>
@@ -920,7 +944,7 @@ function App() {
             announcements={platform.announcements}
             form={forms.announcement}
             editing={Boolean(editing.announcement)}
-            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageCommunication.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("announcement", field, value)}
             onFileChange={(file) => handleFileUpload("announcement", file, { name: "documentName", type: "documentType", data: "documentData" })}
             onSubmit={() => saveSection("announcement", createAnnouncement, updateAnnouncement, (payload) => payload)}
@@ -937,7 +961,7 @@ function App() {
             leaves={platform.leaves}
             form={forms.leave}
             editing={Boolean(editing.leave)}
-            canManage={["super_admin", "vice_principal"].includes(currentUser?.role)}
+            canManage={roleAccess.manageLeave.includes(currentUser?.role)}
             onChange={(field, value) => updateForm("leave", field, value)}
             onSubmit={() =>
               saveSection("leave", createLeave, updateLeave, (payload) => ({
@@ -1206,17 +1230,23 @@ function OverviewSection({ dashboard, platform }) {
   if (role === "student") {
     return <StudentDashboard platform={platform} />;
   }
-  if (role === "teacher") {
+  if (["teacher", "class_teacher", "subject_teacher", "academic_coordinator"].includes(role)) {
     return <TeacherDashboard platform={platform} />;
   }
   if (role === "accountant") {
     return <AccountantDashboard platform={platform} stats={dashboard.stats} />;
   }
+  if (role === "hr_admin") {
+    return <HRDashboard platform={platform} />;
+  }
   if (role === "librarian") {
     return <LibrarianDashboard platform={platform} />;
   }
-  if (role === "transport_staff") {
+  if (["transport_staff", "transport_manager", "driver"].includes(role)) {
     return <TransportDashboard platform={platform} />;
+  }
+  if (role === "support_helpdesk") {
+    return <SupportDashboard platform={platform} />;
   }
 
   const overviewCards = getOverviewCards(role, dashboard, platform);
@@ -1630,7 +1660,25 @@ function StaffSection({ staff, roles, form, editing, canManage, onChange, onSubm
             <FormGrid>
               <Field label="Employee ID" value={form.employeeId} onChange={(value) => onChange("employeeId", value)} />
               <Field label="Name" value={form.name} onChange={(value) => onChange("name", value)} />
-              <SelectField label="Portal Role" value={form.portalRole} options={["teacher", "accountant", "librarian", "transport_staff", "vice_principal", "school_admin"]} onChange={(value) => onChange("portalRole", value)} />
+              <SelectField
+                label="Portal Role"
+                value={form.portalRole}
+                options={[
+                  "school_admin",
+                  "principal",
+                  "vice_principal",
+                  "academic_coordinator",
+                  "class_teacher",
+                  "subject_teacher",
+                  "accountant",
+                  "hr_admin",
+                  "librarian",
+                  "transport_manager",
+                  "driver",
+                  "support_helpdesk"
+                ]}
+                onChange={(value) => onChange("portalRole", value)}
+              />
               <Field label="Designation" value={form.designation} onChange={(value) => onChange("designation", value)} />
               <Field label="Department" value={form.department} onChange={(value) => onChange("department", value)} />
               <Field label="Qualification" value={form.qualification} onChange={(value) => onChange("qualification", value)} />
@@ -2493,6 +2541,13 @@ function TransportSection({ transport, role }) {
                 <MetricTile label="Students" value={String(route.students)} soft />
                 <MetricTile label="ETA" value={route.eta} soft />
               </div>
+              <div className="mt-4 text-sm text-slate-600">
+                <p><span className="font-medium text-brand-slate">Driver Phone:</span> {route.driverPhone || "-"}</p>
+                <p className="mt-1"><span className="font-medium text-brand-slate">Conductor:</span> {route.conductor || "-"}</p>
+                <p className="mt-1"><span className="font-medium text-brand-slate">Conductor Phone:</span> {route.conductorPhone || "-"}</p>
+                <p className="mt-1"><span className="font-medium text-brand-slate">GPS:</span> {route.gpsStatus || "-"}</p>
+                <p className="mt-1"><span className="font-medium text-brand-slate">Current Location:</span> {route.currentLocation || "-"}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -3062,6 +3117,10 @@ function StudentDashboard({ platform }) {
                   <p className="mt-3"><span className="font-medium text-brand-slate">Route:</span> {student?.transportRoute || "-"}</p>
                   <p className="mt-2"><span className="font-medium text-brand-slate">Bus Stop:</span> {student?.busStop || "-"}</p>
                   <p className="mt-2"><span className="font-medium text-brand-slate">Status:</span> {student?.busTrackingStatus || "No live bus data"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Driver:</span> {(platform.transport || [])[0]?.driver || "-"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Driver Phone:</span> {(platform.transport || [])[0]?.driverPhone || "-"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Conductor:</span> {(platform.transport || [])[0]?.conductor || "-"}</p>
+                  <p className="mt-2"><span className="font-medium text-brand-slate">Conductor Phone:</span> {(platform.transport || [])[0]?.conductorPhone || "-"}</p>
                 </div>
               </div>
               {academicRecord?.resultFileName ? (
@@ -3162,6 +3221,38 @@ function AccountantDashboard({ platform, stats }) {
   );
 }
 
+function HRDashboard({ platform }) {
+  return (
+    <section className="mt-6 space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={Briefcase} label="Staff" value={String((platform.staff || []).length)} color="bg-blue-100 text-blue-700" />
+        <StatCard icon={ClipboardList} label="Leave Requests" value={String((platform.leaves || []).length)} color="bg-amber-100 text-amber-700" />
+        <StatCard icon={CheckSquare} label="Attendance Records" value={String((platform.attendanceRecords || []).length)} color="bg-emerald-100 text-emerald-700" />
+        <StatCard icon={BarChart3} label="Reports" value={String((platform.reports || []).length)} color="bg-rose-100 text-rose-700" />
+      </div>
+      <TwoColumn
+        left={
+          <Panel title="Staff Operations" subtitle="Staff profiles and management workload">
+            <SimpleTable
+              columns={["Name", "Role", "Department", "Leave Balance"]}
+              rows={(platform.staff || []).map((member) => [member.name, formatRoleLabel(member.portalRole), member.department, String(member.leaveBalance)])}
+            />
+          </Panel>
+        }
+        right={
+          <Panel title="HR Tasks" subtitle="Administrative workflows">
+            <div className="grid gap-4">
+              <KpiTile label="Staff Management" value="Active" hint="Profiles and assignments" />
+              <KpiTile label="Leave Processing" value={String((platform.leaves || []).length)} hint="Staff leave workflow" />
+              <KpiTile label="Attendance" value={String((platform.attendanceRecords || []).length)} hint="Staff attendance oversight" />
+            </div>
+          </Panel>
+        }
+      />
+    </section>
+  );
+}
+
 function LibrarianDashboard({ platform }) {
   return (
     <section className="mt-6 space-y-6">
@@ -3197,10 +3288,36 @@ function TransportDashboard({ platform }) {
               key={route.id}
               title={route.route}
               subtitle={`${route.vehicle} • ${route.status}`}
-              details={[`Driver: ${route.driver}`, `Students: ${route.students}`, `ETA: ${route.eta}`]}
+              details={[
+                `Driver: ${route.driver} (${route.driverPhone || "-"})`,
+                `Conductor: ${route.conductor || "-"} (${route.conductorPhone || "-"})`,
+                `Students: ${route.students}`,
+                `ETA: ${route.eta}`,
+                `GPS: ${route.gpsStatus || "-"}`,
+                `Location: ${route.currentLocation || "-"}`
+              ]}
             />
           ))}
         </div>
+      </Panel>
+    </section>
+  );
+}
+
+function SupportDashboard({ platform }) {
+  return (
+    <section className="mt-6 space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={Ticket} label="Tickets" value={String((platform.supportTickets || []).length)} color="bg-blue-100 text-blue-700" />
+        <StatCard icon={Bell} label="Announcements" value={String((platform.announcements || []).length)} color="bg-amber-100 text-amber-700" />
+        <StatCard icon={Users} label="Users" value={String((platform.students || []).length + (platform.staff || []).length)} color="bg-emerald-100 text-emerald-700" />
+        <StatCard icon={Settings} label="Queue" value="Active" color="bg-rose-100 text-rose-700" />
+      </div>
+      <Panel title="Support Queue" subtitle="Open tickets and school support requests">
+        <SimpleTable
+          columns={["Requester", "Issue", "Priority", "Status"]}
+          rows={(platform.supportTickets || []).map((ticket) => [ticket.requester || ticket.school || "-", ticket.issue, ticket.priority, ticket.status])}
+        />
       </Panel>
     </section>
   );

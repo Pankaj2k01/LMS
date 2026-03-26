@@ -36,21 +36,35 @@ EduCore currently includes these working modules:
 Supported roles:
 - `super_admin`
 - `school_admin`
+- `principal`
 - `vice_principal`
+- `academic_coordinator`
 - `teacher`
+- `class_teacher`
+- `subject_teacher`
 - `accountant`
+- `hr_admin`
 - `librarian`
-- `transport_staff`
+- `transport_manager`
+- `driver`
+- `support_helpdesk`
 - `student`
 
 Role intent:
 - `super_admin`: system oversight and admin access
 - `school_admin`: principal-level institutional control
+- `principal`: academic and management authority with report monitoring
 - `vice_principal`: academic and operational supervision
+- `academic_coordinator`: timetable, syllabus, and assignment supervision
 - `teacher`: class-scoped academic workflows
+- `class_teacher`: attendance, student leave, homework, class fee visibility
+- `subject_teacher`: marks entry, homework, assigned classes
 - `accountant`: fee, dues, and finance reporting workflows
+- `hr_admin`: staff, leave, and staff attendance management
 - `librarian`: library desk and issue-return visibility
-- `transport_staff`: route, ETA, and student transport operations
+- `transport_manager`: route, ETA, and student transport operations
+- `driver`: assigned route and student transport visibility
+- `support_helpdesk`: ticket handling and support response workflows
 - `student`: self-scoped portal with linked fee, attendance, result, homework, transport, and notices
 
 Parent-facing behavior is handled through the student account for the current release.
@@ -327,11 +341,18 @@ Forgot password:
 Current seeded access:
 - `superadmin@sms.com` / `super123`
 - `admin@sms.com` / `admin123`
+- `principal@sms.com` / `principal123`
 - `vice@sms.com` / `vice123`
+- `coordinator@sms.com` / `coordinator123`
 - `teacher@sms.com` / `teacher123`
+- `classteacher@sms.com` / `classteacher123`
+- `subjectteacher@sms.com` / `subjectteacher123`
 - `accountant@sms.com` / `accountant123`
+- `hr@sms.com` / `hr123`
 - `librarian@sms.com` / `librarian123`
 - `transport@sms.com` / `transport123`
+- `driver@sms.com` / `driver123`
+- `helpdesk@sms.com` / `helpdesk123`
 - `student@sms.com` / `student123`
 
 ## File Upload Support

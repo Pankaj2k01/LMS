@@ -28,6 +28,21 @@ export const mockUsers = [
       "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80"
   },
   {
+    id: "principal-001",
+    name: "Meera Joshi",
+    username: "principal@sms.com",
+    email: "principal@sms.com",
+    password: "principal123",
+    role: "principal",
+    linkedStaffId: "staff-005",
+    accessPermissions: ["overview", "sis", "staff", "attendance", "timetable", "exams", "fees", "communication", "reports", "leave", "support", "settings"],
+    responsibilities: "Academic and management authority with report, leave, and performance oversight",
+    phone: "+91 98100 12001",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&q=80"
+  },
+  {
     id: "vice-001",
     name: "Rohan Kulkarni",
     username: "vice@sms.com",
@@ -42,6 +57,21 @@ export const mockUsers = [
       "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80"
   },
   {
+    id: "coord-001",
+    name: "Sneha Rao",
+    username: "coordinator@sms.com",
+    email: "coordinator@sms.com",
+    password: "coordinator123",
+    role: "academic_coordinator",
+    linkedStaffId: "staff-006",
+    accessPermissions: ["overview", "staff", "attendance", "timetable", "exams", "content", "reports", "support", "settings"],
+    responsibilities: "Handles timetable, syllabus monitoring, teacher assignment, and academic tracking",
+    phone: "+91 98200 12002",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80"
+  },
+  {
     id: "teacher-001",
     name: "Priya Sharma",
     username: "teacher@sms.com",
@@ -54,6 +84,36 @@ export const mockUsers = [
     campus: "Rahul Education Campus",
     avatar:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "classteacher-001",
+    name: "Priya Sharma",
+    username: "classteacher@sms.com",
+    email: "classteacher@sms.com",
+    password: "classteacher123",
+    role: "class_teacher",
+    linkedStaffId: "staff-001",
+    accessPermissions: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "communication", "leave", "support", "settings"],
+    responsibilities: "Marks attendance, approves student leave for class, assigns homework, and views fee status for own class",
+    phone: "+91 98765 11111",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "subjectteacher-001",
+    name: "Arjun Deshmukh",
+    username: "subjectteacher@sms.com",
+    email: "subjectteacher@sms.com",
+    password: "subjectteacher123",
+    role: "subject_teacher",
+    linkedStaffId: "staff-007",
+    accessPermissions: ["overview", "sis", "timetable", "exams", "homework", "support", "settings"],
+    responsibilities: "Handles subject homework, marks entry, and assigned class visibility",
+    phone: "+91 98989 22007",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80"
   },
   {
     id: "accountant-001",
@@ -86,19 +146,64 @@ export const mockUsers = [
       "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=300&q=80"
   },
   {
+    id: "hr-001",
+    name: "Anita Menon",
+    username: "hr@sms.com",
+    email: "hr@sms.com",
+    password: "hr123",
+    role: "hr_admin",
+    linkedStaffId: "staff-008",
+    accessPermissions: ["overview", "staff", "attendance", "leave", "reports", "support", "settings"],
+    responsibilities: "Manages staff, staff leave, payroll-adjacent administration, and staff attendance",
+    phone: "+91 98111 11008",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80"
+  },
+  {
     id: "transport-001",
     name: "Suresh Patil",
     username: "transport@sms.com",
     email: "transport@sms.com",
     password: "transport123",
-    role: "transport_staff",
+    role: "transport_manager",
     linkedStaffId: "staff-004",
-    accessPermissions: ["overview", "transport", "support", "settings"],
-    responsibilities: "Monitors bus routes, ETA, and student transport operations",
+    accessPermissions: ["overview", "transport", "sis", "support", "settings"],
+    responsibilities: "Monitors routes, driver assignment, ETA, and student transport mapping",
     phone: "+91 98333 44005",
     campus: "Rahul Education Campus",
     avatar:
       "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "driver-001",
+    name: "Suresh Pawar",
+    username: "driver@sms.com",
+    email: "driver@sms.com",
+    password: "driver123",
+    role: "driver",
+    linkedStaffId: "staff-009",
+    accessPermissions: ["overview", "transport", "settings"],
+    responsibilities: "Views assigned route, student list, and travel status",
+    phone: "+91 98444 55009",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "helpdesk-001",
+    name: "Support Team",
+    username: "helpdesk@sms.com",
+    email: "helpdesk@sms.com",
+    password: "helpdesk123",
+    role: "support_helpdesk",
+    linkedStaffId: "staff-010",
+    accessPermissions: ["overview", "support", "settings"],
+    responsibilities: "Handles tickets and responds to school user queries",
+    phone: "+91 98555 66010",
+    campus: "EduCore Support",
+    avatar:
+      "https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=300&q=80"
   },
   {
     id: "student-001",
@@ -370,12 +475,84 @@ export const mockStaff = [
     id: "staff-004",
     employeeId: "EMP-1004",
     name: "Suresh Patil",
-    portalRole: "transport_staff",
+    portalRole: "transport_manager",
     designation: "Transport Supervisor",
     department: "Transport",
     qualification: "Fleet Operations Certification",
     workload: "Route monitoring and student pickup operations",
     leaveBalance: 11,
+    classes: "Institution-wide"
+  },
+  {
+    id: "staff-005",
+    employeeId: "EMP-1005",
+    name: "Meera Joshi",
+    portalRole: "principal",
+    designation: "Principal",
+    department: "Administration",
+    qualification: "M.Ed, PhD",
+    workload: "Institution leadership",
+    leaveBalance: 15,
+    classes: "Institution-wide"
+  },
+  {
+    id: "staff-006",
+    employeeId: "EMP-1006",
+    name: "Sneha Rao",
+    portalRole: "academic_coordinator",
+    designation: "Academic Coordinator",
+    department: "Academics",
+    qualification: "M.A, B.Ed",
+    workload: "Timetable, syllabus, teacher assignment",
+    leaveBalance: 12,
+    classes: "Grade 3 - B, Grade 8 - A"
+  },
+  {
+    id: "staff-007",
+    employeeId: "EMP-1007",
+    name: "Arjun Deshmukh",
+    portalRole: "subject_teacher",
+    designation: "Subject Teacher",
+    department: "Mathematics",
+    qualification: "M.Sc",
+    workload: "Subject classes and marks entry",
+    leaveBalance: 9,
+    classes: "Grade 8 - A, Grade 10 - C"
+  },
+  {
+    id: "staff-008",
+    employeeId: "EMP-1008",
+    name: "Anita Menon",
+    portalRole: "hr_admin",
+    designation: "HR & Administrative Staff",
+    department: "Administration",
+    qualification: "MBA HR",
+    workload: "Staff admin, leave, payroll support",
+    leaveBalance: 14,
+    classes: "Institution-wide"
+  },
+  {
+    id: "staff-009",
+    employeeId: "EMP-1009",
+    name: "Suresh Pawar",
+    portalRole: "driver",
+    designation: "Driver",
+    department: "Transport",
+    qualification: "Heavy Vehicle License",
+    workload: "Route 4 morning and afternoon run",
+    leaveBalance: 8,
+    classes: "Route 4"
+  },
+  {
+    id: "staff-010",
+    employeeId: "EMP-1010",
+    name: "Support Team",
+    portalRole: "support_helpdesk",
+    designation: "Help Desk Executive",
+    department: "Support",
+    qualification: "BCA",
+    workload: "Ticket handling and user support",
+    leaveBalance: 10,
     classes: "Institution-wide"
   }
 ];
@@ -764,18 +941,28 @@ export const mockTransport = [
     route: "Route 4",
     vehicle: "MH12 AB 4432",
     driver: "Suresh Pawar",
+    driverPhone: "+91 98444 55009",
+    conductor: "Mahesh Kale",
+    conductorPhone: "+91 98877 66001",
     students: 42,
     eta: "07:42 AM",
-    status: "On Route"
+    status: "On Route",
+    gpsStatus: "Live",
+    currentLocation: "Near Shree Nagar Circle"
   },
   {
     id: "tr-002",
     route: "Route 2",
     vehicle: "MH14 TK 9831",
     driver: "Rakesh Nair",
+    driverPhone: "+91 98444 55010",
+    conductor: "Vikas Patil",
+    conductorPhone: "+91 98877 66002",
     students: 36,
     eta: "07:55 AM",
-    status: "Reached School"
+    status: "Reached School",
+    gpsStatus: "Idle",
+    currentLocation: "School Campus"
   }
 ];
 
@@ -862,12 +1049,52 @@ export const mockRoles = [
     permissions: ["institution.manage", "academics.manage", "staff.manage", "fees.manage", "communication.manage"]
   },
   {
+    role: "principal",
+    permissions: ["reports.view", "leave.approve", "communication.broadcast", "performance.monitor", "fees.view"]
+  },
+  {
     role: "vice_principal",
     permissions: ["academics.manage", "staff.read", "leave.approve", "reports.view"]
   },
   {
     role: "teacher",
     permissions: ["attendance.manage", "homework.manage", "results.manage", "content.manage"]
+  },
+  {
+    role: "class_teacher",
+    permissions: ["attendance.manage", "student_leave.approve", "homework.manage", "fees.view.class", "communication.class"]
+  },
+  {
+    role: "subject_teacher",
+    permissions: ["homework.manage", "marks.manage", "classes.view.assigned"]
+  },
+  {
+    role: "academic_coordinator",
+    permissions: ["timetable.manage", "syllabus.monitor", "teachers.assign", "academics.monitor"]
+  },
+  {
+    role: "accountant",
+    permissions: ["fees.manage", "receipts.generate", "financial_reports.view"]
+  },
+  {
+    role: "hr_admin",
+    permissions: ["staff.manage", "staff_leave.manage", "staff_attendance.manage"]
+  },
+  {
+    role: "librarian",
+    permissions: ["library.manage", "books.issue", "catalog.manage"]
+  },
+  {
+    role: "transport_manager",
+    permissions: ["routes.manage", "drivers.assign", "transport.map_students"]
+  },
+  {
+    role: "driver",
+    permissions: ["route.view.assigned", "students.view.assigned"]
+  },
+  {
+    role: "support_helpdesk",
+    permissions: ["tickets.manage", "queries.respond"]
   }
 ];
 

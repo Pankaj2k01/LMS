@@ -62,7 +62,7 @@ export function createApiRouter(getDbStatus) {
   router.post(
     "/students",
     authMiddleware,
-    requireRoles("super_admin", "school_admin", "vice_principal"),
+    requireRoles("super_admin", "school_admin", "principal", "vice_principal"),
     validateRequiredFields(["admissionNo", "name", "className", "parentName"]),
     withAsync(async (req, res) => {
       const record = {
@@ -117,7 +117,7 @@ export function createApiRouter(getDbStatus) {
   router.post(
     "/staff",
     authMiddleware,
-    requireRoles("super_admin", "school_admin", "vice_principal"),
+    requireRoles("super_admin", "school_admin", "principal", "vice_principal", "hr_admin"),
     validateRequiredFields(["employeeId", "name", "designation", "department", "portalRole"]),
     withAsync(async (req, res) => {
       const record = {
@@ -155,10 +155,10 @@ export function createApiRouter(getDbStatus) {
     "/support-tickets",
     createCrudRouter({
       repository: repositories.supportTickets,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher", "student"],
-      createRoles: ["super_admin", "school_admin", "vice_principal", "teacher", "student"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "student", "support_helpdesk"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "student", "support_helpdesk"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "support_helpdesk"],
+      deleteRoles: ["super_admin", "school_admin", "principal"],
       requiredFields: ["requester", "requesterRole", "issue", "description"],
       buildRecord: (body) => ({
         id: `sup-${Date.now()}`,
@@ -277,10 +277,10 @@ export function createApiRouter(getDbStatus) {
     "/staff",
     createCrudRouter({
       repository: repositories.staff,
-      listRoles: ["super_admin", "school_admin", "vice_principal"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "hr_admin"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "hr_admin"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "hr_admin"],
+      deleteRoles: ["super_admin", "school_admin", "principal"],
       requiredFields: ["employeeId", "name", "designation", "department", "portalRole"],
       buildRecord: (body) => ({
         id: `staff-${Date.now()}`,
@@ -312,10 +312,10 @@ export function createApiRouter(getDbStatus) {
     "/students",
     createCrudRouter({
       repository: repositories.students,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher", "teacher", "transport_manager"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal"],
+      deleteRoles: ["super_admin", "school_admin", "principal"],
       requiredFields: ["admissionNo", "name", "className", "parentName"],
       buildRecord: (body) => ({
         id: `stu-${Date.now()}`,
@@ -383,10 +383,10 @@ export function createApiRouter(getDbStatus) {
     "/attendance-records",
     createCrudRouter({
       repository: repositories.attendanceRecords,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin", "vice_principal"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "hr_admin"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "class_teacher"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "class_teacher"],
+      deleteRoles: ["super_admin", "school_admin", "principal", "vice_principal"],
       requiredFields: ["className", "date", "present", "absent"],
       buildRecord: (body) => ({
         id: `att-${Date.now()}`,
@@ -462,10 +462,10 @@ export function createApiRouter(getDbStatus) {
     "/timetable",
     createCrudRouter({
       repository: repositories.timetable,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher", "teacher", "student"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator"],
+      deleteRoles: ["super_admin", "school_admin", "principal"],
       requiredFields: ["className", "day", "period", "subject"],
       buildRecord: (body) => ({
         id: `tt-${Date.now()}`,
@@ -491,10 +491,10 @@ export function createApiRouter(getDbStatus) {
     "/exams",
     createCrudRouter({
       repository: repositories.exams,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher", "teacher", "student"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator"],
+      deleteRoles: ["super_admin", "school_admin", "principal"],
       requiredFields: ["name", "className", "schedule"],
       buildRecord: (body) => ({
         id: `exam-${Date.now()}`,
@@ -528,10 +528,10 @@ export function createApiRouter(getDbStatus) {
     "/results",
     createCrudRouter({
       repository: repositories.results,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher", "teacher", "student"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "academic_coordinator", "class_teacher", "subject_teacher"],
+      deleteRoles: ["super_admin", "school_admin", "principal"],
       requiredFields: ["student", "className", "exam", "percentage", "grade"],
       buildRecord: (body) => ({
         id: `res-${Date.now()}`,
@@ -561,9 +561,9 @@ export function createApiRouter(getDbStatus) {
     "/fees",
     createCrudRouter({
       repository: repositories.fees,
-      listRoles: ["super_admin", "school_admin", "vice_principal", "teacher", "student"],
-      createRoles: ["super_admin", "school_admin", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "accountant", "class_teacher", "teacher", "student"],
+      createRoles: ["super_admin", "school_admin", "accountant"],
+      updateRoles: ["super_admin", "school_admin", "accountant"],
       deleteRoles: ["super_admin", "school_admin"],
       requiredFields: ["studentName", "category", "className", "dueDate"],
       buildRecord: (body) => ({
@@ -600,10 +600,10 @@ export function createApiRouter(getDbStatus) {
     "/announcements",
     createCrudRouter({
       repository: repositories.announcements,
-      listRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
-      createRoles: ["school_admin", "vice_principal", "super_admin"],
-      updateRoles: ["school_admin", "vice_principal", "super_admin"],
-      deleteRoles: ["school_admin", "super_admin"],
+      listRoles: ["school_admin", "principal", "vice_principal", "class_teacher", "teacher", "student", "super_admin", "support_helpdesk"],
+      createRoles: ["school_admin", "principal", "vice_principal", "class_teacher", "super_admin"],
+      updateRoles: ["school_admin", "principal", "vice_principal", "class_teacher", "super_admin"],
+      deleteRoles: ["school_admin", "principal", "super_admin"],
       requiredFields: ["title", "audience", "date", "content"],
       buildRecord: (body) => ({
         id: `ann-${Date.now()}`,
@@ -641,10 +641,10 @@ export function createApiRouter(getDbStatus) {
     "/homework",
     createCrudRouter({
       repository: repositories.homework,
-      listRoles: ["school_admin", "vice_principal", "teacher", "super_admin", "student"],
-      createRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
-      updateRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
-      deleteRoles: ["school_admin", "vice_principal", "teacher", "super_admin"],
+      listRoles: ["school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "super_admin", "student"],
+      createRoles: ["school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "super_admin"],
+      updateRoles: ["school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "super_admin"],
+      deleteRoles: ["school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "super_admin"],
       requiredFields: ["subject", "className", "title", "dueDate"],
       buildRecord: (body) => ({
         id: `hw-${Date.now()}`,
@@ -688,10 +688,10 @@ export function createApiRouter(getDbStatus) {
     "/leaves",
     createCrudRouter({
       repository: repositories.leaves,
-      listRoles: ["super_admin", "school_admin", "teacher", "vice_principal"],
-      createRoles: ["super_admin", "school_admin", "teacher", "vice_principal"],
-      updateRoles: ["super_admin", "school_admin", "vice_principal"],
-      deleteRoles: ["super_admin", "school_admin", "vice_principal"],
+      listRoles: ["super_admin", "school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "hr_admin", "student"],
+      createRoles: ["super_admin", "school_admin", "principal", "vice_principal", "teacher", "class_teacher", "subject_teacher", "hr_admin", "student"],
+      updateRoles: ["super_admin", "school_admin", "principal", "vice_principal", "class_teacher", "hr_admin"],
+      deleteRoles: ["super_admin", "school_admin", "principal", "vice_principal"],
       requiredFields: ["applicant", "role", "from", "to", "reason"],
       buildRecord: (body) => ({
         id: `leave-${Date.now()}`,

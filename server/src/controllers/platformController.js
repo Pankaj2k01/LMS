@@ -92,6 +92,7 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         results: data.results
       };
     case "school_admin":
+    case "principal":
     case "vice_principal":
       return {
         ...base,
@@ -103,7 +104,21 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         exams: data.exams,
         results: data.results
       };
+    case "academic_coordinator":
+      return {
+        ...base,
+        students: data.students,
+        staff: data.staff,
+        attendanceRecords: data.attendanceRecords,
+        timetable: data.timetable,
+        exams: data.exams,
+        results: data.results,
+        content: mockContent,
+        reports: mockReports
+      };
     case "teacher":
+    case "class_teacher":
+    case "subject_teacher":
       const teacherClasses = assignedClasses.length > 0 ? assignedClasses : ["Grade 3 - B"];
       return {
         ...base,
@@ -113,7 +128,7 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         results: data.results.filter((item) => classMatches(teacherClasses, item.className)),
         timetable: data.timetable.filter((item) => classMatches(teacherClasses, item.className)),
         attendanceRecords: data.attendanceRecords.filter((item) => classMatches(teacherClasses, item.className)),
-        fees: data.fees.filter((item) => classMatches(teacherClasses, item.className)),
+        fees: role === "subject_teacher" ? [] : data.fees.filter((item) => classMatches(teacherClasses, item.className)),
         leaves: data.leaves.filter((item) => item.role === "Teacher" || item.role === "Student"),
         content: mockContent.filter((item) => classMatches(teacherClasses, item.className)),
         reports: mockReports
@@ -126,6 +141,14 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         reports: mockReports,
         leaves: data.leaves.filter((item) => item.applicant === user?.name || item.role === "Accountant")
       };
+    case "hr_admin":
+      return {
+        ...base,
+        staff: data.staff,
+        attendanceRecords: data.attendanceRecords,
+        leaves: data.leaves,
+        reports: mockReports
+      };
     case "librarian":
       return {
         ...base,
@@ -134,12 +157,25 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         leaves: data.leaves.filter((item) => item.applicant === user?.name || item.role === "Librarian")
       };
     case "transport_staff":
+    case "transport_manager":
       return {
         ...base,
         transport: mockTransport,
         students: data.students.filter((item) => Boolean(item.transportRoute)),
         attendanceRecords: data.attendanceRecords,
         leaves: data.leaves.filter((item) => item.applicant === user?.name || item.role === "Transport")
+      };
+    case "driver":
+      return {
+        ...base,
+        transport: mockTransport.filter((item) => normalizeText(item.driver) === normalizeText(user?.name)),
+        students: data.students.filter((item) => normalizeText(item.transportRoute) === normalizeText("Route 4"))
+      };
+    case "support_helpdesk":
+      return {
+        ...base,
+        supportTickets: data.supportTickets,
+        announcements: data.announcements
       };
     case "student": {
       const currentStudent =
