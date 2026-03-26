@@ -1,0 +1,12 @@
+{
+  "framework": null,
+  "buildCommand": "npm --prefix web run build",
+  "outputDirectory": "web/dist",
+  "installCommand": "npm --prefix web install && npm --prefix server install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}

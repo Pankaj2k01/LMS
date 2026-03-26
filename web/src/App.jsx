@@ -1615,6 +1615,16 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
           <KpiTile label={teacherMode ? "Late" : studentMode ? "Bus Tracking" : "Shortage Alerts"} value={teacherMode ? String(primaryClass?.late || 0) : studentMode ? currentStudent?.busTrackingStatus || "No live status" : String(attendance.shortageAlerts)} hint={teacherMode ? "Late arrivals" : studentMode ? "Assigned transport update" : "Below minimum threshold"} />
         </div>
       </Panel>
+      <Panel title="Attendance Calendar" subtitle="Date-wise attendance activity calendar">
+        <CalendarList
+          items={(records || []).map((item) => ({
+            id: item.id,
+            date: item.date,
+            title: item.className,
+            description: `Marked by ${item.markedBy || "School staff"}`
+          }))}
+        />
+      </Panel>
       {studentMode ? (
         <TwoColumn
           left={
@@ -1642,14 +1652,6 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
           right={
             <Panel title="Recent Attendance Dates" subtitle="Attendance entries logged by the school for your class">
               <div className="space-y-4">
-                <CalendarList
-                  items={(records || []).map((item) => ({
-                    id: item.id,
-                    date: item.date,
-                    title: item.className,
-                    description: `Marked by ${item.markedBy || "School staff"}`
-                  }))}
-                />
                 {(records || []).map((item) => (
                   <div key={item.id} className="rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600">
                     <p className="font-semibold text-brand-slate">{item.date}</p>
@@ -2181,16 +2183,18 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
   const viewerMode = role === "parent" || role === "student";
   return (
     <section className="mt-6 space-y-6">
+      <Panel title="Notification Calendar" subtitle="Date-wise notice and circular schedule">
+        <CalendarList
+          items={announcements.map((item) => ({
+            id: item.id,
+            date: item.date,
+            title: item.title,
+            description: viewerMode ? item.type : item.audience
+          }))}
+        />
+      </Panel>
       {viewerMode ? (
         <Panel title="School Notices" subtitle="Circulars and announcements shared by the school">
-              <CalendarList
-                items={announcements.map((item) => ({
-                  id: item.id,
-                  date: item.date,
-                  title: item.title,
-                  description: item.type
-                }))}
-              />
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
@@ -2208,14 +2212,6 @@ function CommunicationSection({ announcements, form, editing, canManage, onChang
         <TwoColumn
           left={
             <Panel title="Notification & Communication" subtitle="Broadcast circulars, announcements, and delivery workflows">
-              <CalendarList
-                items={announcements.map((item) => ({
-                  id: item.id,
-                  date: item.date,
-                  title: item.title,
-                  description: item.audience
-                }))}
-              />
               <div className="grid gap-4 lg:grid-cols-2">
                 {announcements.map((item) => (
                   <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">

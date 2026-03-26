@@ -1,0 +1,98 @@
+services:
+  - type: web
+    name: educore-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 5001
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: CLIENT_URLS
+        sync: false
+      - key: SCHOOL_NAME
+        value: EduCore
+      - key: SCHOOL_ADDRESS
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: SUPPORT_PHONE
+        sync: false
+      - key: PAYMENT_GATEWAY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PAYU_MERCHANT_KEY
+        sync: false
+      - key: PAYU_SALT
+        sync: false
+      - key: SMS_PROVIDER
+        sync: false
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_SENDER_ID
+        sync: false
+      - key: SMS_BASE_URL
+        sync: false
+      - key: OTP_PROVIDER
+        sync: false
+      - key: OTP_API_KEY
+        sync: false
+      - key: OTP_TEMPLATE_ID
+        sync: false
+      - key: GPS_PROVIDER
+        sync: false
+      - key: GPS_API_KEY
+        sync: false
+      - key: GPS_BASE_URL
+        sync: false
+      - key: GPS_DEVICE_TOKEN
+        sync: false
+      - key: STORAGE_PROVIDER
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_BUCKET_NAME
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+
+  - type: static_site
+    name: educore-web
+    rootDir: web
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_APP_NAME
+        value: EduCore

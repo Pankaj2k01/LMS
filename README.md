@@ -376,6 +376,23 @@ Open:
 - Frontend: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
 - Backend health: [http://127.0.0.1:5001/api/health](http://127.0.0.1:5001/api/health)
 
+## Deployment Files
+
+Deployment-ready config files added:
+- [render.yaml](/Users/pankajnebbulalyadav/Documents/LMS/render.yaml)
+- [vercel.json](/Users/pankajnebbulalyadav/Documents/LMS/vercel.json)
+
+Recommended deployment:
+- use `Render` for backend API
+- use `Render Static Site` or `Vercel` for frontend
+
+After backend deployment, your future mobile/web apps should use:
+- `VITE_API_BASE_URL=https://your-api-domain/api`
+
+Examples:
+- `https://educore-api.onrender.com/api`
+- `https://api.yourschooldomain.com/api`
+
 ## Build Check
 
 Frontend:
@@ -405,6 +422,10 @@ Provider-backed features still require production credentials and deployment con
 - cloud file storage and signed delivery
 
 These areas are integration-ready in product structure, but need provider setup before they can be treated as full production services.
+
+Public deployment note:
+- I can prepare deployment files in the repo
+- but I cannot generate the final public Render/Vercel URL from here unless you deploy it from your own Render/Vercel account
 
 ## Where To Change Credentials
 
