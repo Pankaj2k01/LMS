@@ -327,6 +327,59 @@ const getPageMeta = (activeTab) => {
 };
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const calendarWeekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function parseCalendarDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildMonthGrid(items) {
+  const datedItems = items
+    .map((item) => ({ ...item, parsedDate: parseCalendarDate(item.date) }))
+    .filter((item) => item.parsedDate);
+
+  if (!datedItems.length) {
+    return null;
+  }
+
+  const anchor = datedItems[0].parsedDate;
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+  const monthStart = new Date(year, month, 1);
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+  const cells = Array.from({ length: 35 }, (_, index) => {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + index);
+    const isoDate = cellDate.toISOString().slice(0, 10);
+    return {
+      isoDate,
+      dayNumber: cellDate.getDate(),
+      isCurrentMonth: cellDate.getMonth() === month,
+      items: datedItems.filter((item) => item.parsedDate.toISOString().slice(0, 10) === isoDate)
+    };
+  });
+
+  return {
+    title: anchor.toLocaleString("en-IN", { month: "long", year: "numeric" }),
+    cells
+  };
+}
+
+function buildWeekBoard(items) {
+  const normalized = weekDays.map((day) => ({
+    day,
+    items: items.filter((item) => String(item.date || "").toLowerCase() === day.toLowerCase())
+  }));
+
+  return normalized.some((column) => column.items.length) ? normalized : null;
+}
 
 function getSubjectsForClass(className, timetable = []) {
   return [...new Set(timetable.filter((item) => item.className === className).map((item) => item.subject).filter(Boolean))];
@@ -2692,23 +2745,71 @@ function SupportSection({ tickets, currentUser }) {
 }
 
 function CalendarList({ items }) {
+  const monthGrid = buildMonthGrid(items || []);
+  const weekBoard = !monthGrid ? buildWeekBoard(items || []) : null;
+
   return (
-    <div className="mb-5 rounded-[1.75rem] bg-slate-50 p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Calendar View</p>
-      {items?.length ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {items.map((item) => (
-            <div key={item.id} className="rounded-2xl bg-white p-4 text-sm text-slate-600">
-              <p className="font-semibold text-brand-slate">{item.date}</p>
-              <p className="mt-1">{item.title}</p>
-              <p className="mt-2 text-slate-500">{item.description}</p>
+    <div className="mb-5 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,35,95,0.08)]">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-brand-navy px-5 py-4 text-white">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100">Calendar View</p>
+          <p className="mt-1 text-lg font-semibold">{monthGrid?.title || "Weekly Schedule"}</p>
+        </div>
+        <div className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-50">
+          {items?.length ? `${items.length} entries` : "No entries"}
+        </div>
+      </div>
+
+      {monthGrid ? (
+        <div className="bg-slate-950 p-3 text-white">
+          <div className="grid grid-cols-7 gap-px rounded-[1.25rem] bg-slate-800 overflow-hidden">
+            {calendarWeekDays.map((day) => (
+              <div key={day} className="bg-slate-900 px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {day}
+              </div>
+            ))}
+            {monthGrid.cells.map((cell) => (
+              <div key={cell.isoDate} className={`min-h-[126px] px-3 py-3 align-top ${cell.isCurrentMonth ? "bg-slate-950" : "bg-slate-900/70 text-slate-500"}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${cell.items.length ? "bg-brand-blue text-white" : cell.isCurrentMonth ? "text-slate-200" : "text-slate-500"}`}>
+                    {cell.dayNumber}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {cell.items.slice(0, 3).map((item) => (
+                    <div key={item.id} className="rounded-xl bg-emerald-500/20 px-2 py-1.5 text-xs leading-5 text-emerald-200 ring-1 ring-emerald-400/20">
+                      <p className="font-semibold">{item.title}</p>
+                      <p className="text-[11px] text-emerald-100/80">{item.description}</p>
+                    </div>
+                  ))}
+                  {cell.items.length > 3 ? <p className="text-[11px] text-slate-400">+{cell.items.length - 3} more</p> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : weekBoard ? (
+        <div className="grid gap-px bg-slate-200 md:grid-cols-3 xl:grid-cols-6">
+          {weekBoard.map((column) => (
+            <div key={column.day} className="bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{column.day}</p>
+              <div className="mt-4 space-y-3">
+                {column.items.length ? (
+                  column.items.map((item) => (
+                    <div key={item.id} className="rounded-2xl bg-white p-3 text-sm text-slate-600 shadow-sm">
+                      <p className="font-semibold text-brand-slate">{item.title}</p>
+                      <p className="mt-1 text-slate-500">{item.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl bg-white p-3 text-sm text-slate-400 shadow-sm">No entries</div>
+                )}
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-slate-500">
-          No calendar entries are available for this view yet.
-        </div>
+        <div className="bg-slate-50 p-5 text-sm text-slate-500">No calendar entries are available for this view yet.</div>
       )}
     </div>
   );
