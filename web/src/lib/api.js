@@ -97,6 +97,7 @@ export const createAnnouncement = (payload) => createResource("/announcements", 
 export const createHomework = (payload) => createResource("/homework", payload);
 export const createLeave = (payload) => createResource("/leaves", payload);
 export const createSupportTicket = (payload) => createResource("/support-tickets", payload);
+export const importStudentsCsv = (payload) => createResource("/students/import-csv", payload);
 export const updateTenant = (id, payload) => updateResource(`/tenants/${id}`, payload);
 export const updateStudent = (id, payload) => updateResource(`/students/${id}`, payload);
 export const updateStaff = (id, payload) => updateResource(`/staff/${id}`, payload);

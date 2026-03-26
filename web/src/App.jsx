@@ -62,6 +62,7 @@ import {
   fetchPlatformData,
   fetchRoles,
   fetchUsers,
+  importStudentsCsv,
   login,
   logout,
   payFee,
@@ -138,7 +139,7 @@ const roleTabs = {
   hr_admin: ["overview", "staff", "attendance", "leave", "reports", "support", "settings"],
   librarian: ["overview", "library", "support", "settings"],
   parent: ["settings"],
-  student: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "transport", "library", "content", "communication", "leave", "support", "settings"],
+  student: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "transport", "communication", "leave", "settings"],
   transport_staff: ["overview", "transport", "support", "settings"],
   transport_manager: ["overview", "transport", "sis", "support", "settings"],
   driver: ["overview", "transport", "settings"],
@@ -163,7 +164,7 @@ const roleAccess = {
 
 const loginNotes = [
   "EduCore includes linked student, staff, academic, fee, notification, and support workflows.",
-  "Login supports email or username with JWT-based access control.",
+  "Login supports email, username, or mobile number with JWT-based access control.",
   "New student and staff accounts use assigned username as the first login password."
 ];
 
@@ -185,9 +186,11 @@ const initialForms = {
   student: {
     name: "",
     admissionNo: "",
+    rollNumber: "",
     applicationNo: "",
     className: "",
     parentName: "",
+    mobileNumber: "",
     admissionDate: "",
     academicHistory: "",
     feesDue: "",
@@ -219,7 +222,8 @@ const initialForms = {
     workload: "",
     leaveBalance: "",
     classes: "",
-    portalUsername: ""
+    portalUsername: "",
+    phone: ""
   },
   attendance: { className: "", date: "", present: "", absent: "", late: "", markedBy: "" },
   timetable: { className: "", day: "Monday", period: "", subject: "", teacher: "", room: "" },
@@ -476,6 +480,15 @@ async function readFileAsDataUrl(file) {
   });
 }
 
+async function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
 async function readFilesAsAttachmentList(fileList) {
   const files = Array.from(fileList || []);
   return Promise.all(
@@ -688,7 +701,7 @@ function App() {
     setAuthLoading(true);
 
     try {
-      const auth = await login({ email, password });
+      const auth = await login({ email, mobileNumber: email, password });
       setCurrentUser(auth.user);
     } catch (loginError) {
       setAuthError(loginError?.response?.data?.message || "Login failed");
@@ -769,6 +782,21 @@ function App() {
             form={forms.student}
             editing={Boolean(editing.student)}
             canManage={roleAccess.manageStudents.includes(currentUser?.role)}
+            onImportCsv={async (file) => {
+              setSubmitting("student-import");
+              setError("");
+              setSuccessMessage("");
+              try {
+                const csvData = await readFileAsText(file);
+                const result = await importStudentsCsv({ csvData });
+                await loadAppData();
+                setSuccessMessage(`${result.imported || 0} students imported successfully.`);
+              } catch (submitError) {
+                setError(submitError?.response?.data?.message || "Unable to import student CSV.");
+              } finally {
+                setSubmitting("");
+              }
+            }}
             onChange={(field, value) => updateForm("student", field, value)}
             onDocumentUpload={(files) => handleMultipleFileUpload("student", files, "documentUploads")}
             onSubmit={() =>
@@ -784,7 +812,7 @@ function App() {
             onEdit={(item) => startEdit("student", item)}
             onDelete={(id) => handleDelete("student", deleteStudent, id)}
             onCancel={() => resetForm("student")}
-            submitting={submitting === "student"}
+            submitting={submitting === "student" || submitting === "student-import"}
           />
         );
       case "staff":
@@ -1187,7 +1215,7 @@ function LoginScreen({ onSubmit, error, loading }) {
     setForgotError("");
 
     try {
-      const result = await requestPasswordReset({ email: forgotValue, username: forgotValue });
+      const result = await requestPasswordReset({ email: forgotValue, username: forgotValue, mobileNumber: forgotValue });
       setForgotMessage(result.message || "Password reset request submitted.");
     } catch (requestError) {
       setForgotError(requestError?.response?.data?.message || "Unable to process forgot password request.");
@@ -1233,7 +1261,7 @@ function LoginScreen({ onSubmit, error, loading }) {
             </div>
           </div>
           <form className="mt-8 space-y-4" onSubmit={onSubmit}>
-            <Field label="Email or Username" name="email" type="text" />
+            <Field label="Email, Username, or Mobile" name="email" type="text" />
             <Field label="Password" name="password" type="password" />
             {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
             <button
@@ -1253,7 +1281,7 @@ function LoginScreen({ onSubmit, error, loading }) {
           </button>
           {forgotOpen ? (
             <div className="mt-4 rounded-[1.5rem] bg-slate-50 p-4">
-              <Field label="Registered Email or Username" value={forgotValue} onChange={setForgotValue} />
+              <Field label="Registered Email, Username, or Mobile" value={forgotValue} onChange={setForgotValue} />
               {forgotMessage ? <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{forgotMessage}</p> : null}
               {forgotError ? <p className="mt-3 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{forgotError}</p> : null}
               <button
@@ -1487,7 +1515,7 @@ function OnboardingSection({ onboarding, currentUser }) {
   );
 }
 
-function StudentsSection({ students, timetable, role, form, editing, canManage, onChange, onDocumentUpload, onSubmit, onEdit, onDelete, onCancel, submitting }) {
+function StudentsSection({ students, timetable, role, form, editing, canManage, onImportCsv, onChange, onDocumentUpload, onSubmit, onEdit, onDelete, onCancel, submitting }) {
   const studentView = role === "student";
   const currentStudent = students[0];
   return (
@@ -1505,6 +1533,7 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
                         <p className="text-xl font-semibold">{student.name}</p>
                         <p className="text-sm text-slate-500">{student.className}</p>
                         <p className="text-sm text-slate-500">{student.parentName}</p>
+                        <p className="text-sm text-slate-500">{student.rollNumber ? `Roll No: ${student.rollNumber}` : ""}</p>
                       </div>
                     </div>
                     <ActionButtons canManage={canManage} onEdit={() => onEdit(student)} onDelete={() => onDelete(student.id)} busy={submitting} />
@@ -1512,6 +1541,7 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
                   <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                     <InfoChip icon={Ticket} label="Application No." value={student.applicationNo || "-"} />
                     <InfoChip icon={UserSquare2} label="Admission No." value={student.admissionNo} />
+                    <InfoChip icon={Ticket} label="Roll No." value={student.rollNumber || "-"} />
                     <InfoChip icon={Briefcase} label="Route" value={student.transportRoute} />
                     <InfoChip icon={FileBadge} label="Performance" value={student.performance} />
                     <InfoChip icon={Receipt} label="Fee Due" value={currency(student.feesDue)} />
@@ -1573,6 +1603,7 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
                   <div className="grid gap-4 md:grid-cols-2">
                     <InfoChip icon={UserSquare2} label="Student Name" value={currentStudent.name} />
                     <InfoChip icon={Ticket} label="Admission No." value={currentStudent.admissionNo} />
+                    <InfoChip icon={UserSquare2} label="Roll No." value={currentStudent.rollNumber || "-"} />
                     <InfoChip icon={FileBadge} label="Application No." value={currentStudent.applicationNo || "-"} />
                     <InfoChip icon={Receipt} label="Current Fee Due" value={currency(currentStudent.feesDue)} />
                     <InfoChip icon={Bell} label="Attendance" value={`${currentStudent.attendance}%`} />
@@ -1590,6 +1621,7 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
                         <p><span className="font-medium text-brand-slate">Admission Date:</span> {currentStudent.admissionDate || "-"}</p>
                         <p><span className="font-medium text-brand-slate">Application No:</span> {currentStudent.applicationNo || "-"}</p>
                         <p><span className="font-medium text-brand-slate">Admission No:</span> {currentStudent.admissionNo || "-"}</p>
+                        <p><span className="font-medium text-brand-slate">Roll No:</span> {currentStudent.rollNumber || "-"}</p>
                         <p><span className="font-medium text-brand-slate">Class:</span> {currentStudent.className || "-"}</p>
                       </div>
                     </div>
@@ -1627,8 +1659,10 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
                 <Field label="Student Name" value={form.name} onChange={(value) => onChange("name", value)} />
                 <Field label="Application No." value={form.applicationNo} onChange={(value) => onChange("applicationNo", value)} />
                 <Field label="Admission No." value={form.admissionNo} onChange={(value) => onChange("admissionNo", value)} />
+                <Field label="Roll No." value={form.rollNumber} onChange={(value) => onChange("rollNumber", value)} />
                 <Field label="Class / Section" value={form.className} onChange={(value) => onChange("className", value)} />
                 <Field label="Parent Name" value={form.parentName} onChange={(value) => onChange("parentName", value)} />
+                <Field label="Mobile Number" value={form.mobileNumber} onChange={(value) => onChange("mobileNumber", value)} />
                 <Field label="Admission Date" type="date" value={form.admissionDate} onChange={(value) => onChange("admissionDate", value)} />
                 <Field label="Attendance" type="number" value={form.attendance} onChange={(value) => onChange("attendance", value)} />
                 <Field label="Performance" value={form.performance} onChange={(value) => onChange("performance", value)} />
@@ -1658,10 +1692,21 @@ function StudentsSection({ students, timetable, role, form, editing, canManage, 
       {!studentView ? (
         <Panel title="Student Operations" subtitle="Bulk import, promotions, TC generation, alumni tracking, and transport visibility">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <DownloadLink label="Download Import CSV" content={"name,applicationNo,admissionNo,className,parentName,admissionDate,transportRoute"} filename="student-import-template.csv" />
+            <DownloadLink label="Download Import CSV" content={"name,applicationNo,admissionNo,rollNumber,className,parentName,mobileNumber,admissionDate,transportRoute"} filename="student-import-template.csv" />
             <DownloadLink label="Promotion Sheet" content={students.map((item) => `${item.name},${item.className},${item.promotedTo || "-"}`).join("\n")} filename="student-promotion-sheet.csv" />
             <DownloadLink label="TC Register" content={students.map((item) => `${item.name},TC Issued:${item.tcIssued},Alumni:${item.alumniStatus}`).join("\n")} filename="tc-register.txt" />
             <DownloadLink label="Bus Tracking List" content={students.map((item) => `${item.name},${item.transportRoute},${item.busStop || "-"},${item.busTrackingStatus || "-"}`).join("\n")} filename="student-bus-tracking.txt" />
+          </div>
+          <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
+            <FileField
+              label="Import Students From CSV"
+              accept=".csv,text/csv"
+              onChange={(file) => {
+                if (file) {
+                  onImportCsv(file);
+                }
+              }}
+            />
           </div>
         </Panel>
       ) : null}
@@ -1734,6 +1779,7 @@ function StaffSection({ staff, roles, form, editing, canManage, onChange, onSubm
               />
               <Field label="Designation" value={form.designation} onChange={(value) => onChange("designation", value)} />
               <Field label="Department" value={form.department} onChange={(value) => onChange("department", value)} />
+              <Field label="Phone" value={form.phone} onChange={(value) => onChange("phone", value)} />
               <Field label="Qualification" value={form.qualification} onChange={(value) => onChange("qualification", value)} />
               <Field label="Workload" value={form.workload} onChange={(value) => onChange("workload", value)} />
               <Field label="Leave Balance" type="number" value={form.leaveBalance} onChange={(value) => onChange("leaveBalance", value)} />
@@ -1771,6 +1817,14 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
   const studentMode = role === "student";
   const primaryClass = attendance.studentSummary?.[0];
   const currentStudent = students[0];
+  const studentCalendarItems = studentMode
+    ? (records || []).map((item) => ({
+        id: item.id,
+        date: item.date,
+        title: currentStudent?.attendance ? `${currentStudent.attendance}% attendance` : "Attendance updated",
+        description: currentStudent?.name || "Student attendance"
+      }))
+    : [];
   return (
     <section className="mt-6 space-y-6">
       <Panel title="Attendance Snapshot" subtitle="Daily attendance summary and class status">
@@ -1783,12 +1837,16 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
       </Panel>
       <Panel title="Attendance Calendar" subtitle="Date-wise attendance activity calendar">
         <CalendarList
-          items={(records || []).map((item) => ({
-            id: item.id,
-            date: item.date,
-            title: item.className,
-            description: `Marked by ${item.markedBy || "School staff"}`
-          }))}
+          items={
+            studentMode
+              ? studentCalendarItems
+              : (records || []).map((item) => ({
+                  id: item.id,
+                  date: item.date,
+                  title: item.className,
+                  description: `Marked by ${item.markedBy || "School staff"}`
+                }))
+          }
         />
       </Panel>
       {studentMode ? (
@@ -1816,16 +1874,16 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
             </Panel>
           }
           right={
-            <Panel title="Recent Attendance Dates" subtitle="Attendance entries logged by the school for your class">
+            <Panel title="My Attendance Overview" subtitle="Personal attendance record and updates">
               <div className="space-y-4">
-                {(records || []).map((item) => (
+                {(studentCalendarItems || []).map((item) => (
                   <div key={item.id} className="rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600">
                     <p className="font-semibold text-brand-slate">{item.date}</p>
-                    <p className="mt-1">{item.className}</p>
-                    <p className="mt-2 text-slate-500">Recorded by {item.markedBy || "School staff"}</p>
+                    <p className="mt-1">{item.title}</p>
+                    <p className="mt-2 text-slate-500">{item.description}</p>
                   </div>
                 ))}
-                {!(records || []).length ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No attendance entries available.</div> : null}
+                {!studentCalendarItems.length ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No personal attendance entries available.</div> : null}
               </div>
             </Panel>
           }
@@ -1893,12 +1951,13 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
 
 function TimetableSection({ timetable, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
   const timetableClasses = [...new Set((timetable || []).map((item) => item.className))];
+  const visibleClasses = role === "student" ? timetableClasses.slice(0, 1) : timetableClasses;
   return (
     <section className="mt-6 space-y-6">
       <Panel title="Weekly Timetable Calendar" subtitle="Class-wise weekly timetable with download support">
-        {timetableClasses.length ? (
+        {visibleClasses.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            {timetableClasses.map((className) => (
+            {visibleClasses.map((className) => (
               <div key={className} className="rounded-[1.75rem] bg-slate-50 p-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -1930,51 +1989,39 @@ function TimetableSection({ timetable, form, editing, canManage, onChange, onSub
           <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No timetable entries available.</div>
         )}
       </Panel>
-      <TwoColumn
-        left={
-          <Panel title="Timetable Entries" subtitle="Published class and subject timetable rows">
-            <SimpleTable
-              columns={["Class", "Day", "Period", "Subject", "Teacher", "Room"]}
-              rows={(timetable || []).map((item) => [item.className, item.day, item.period, item.subject, item.teacher, item.room || "-"])}
-            />
-          </Panel>
-        }
-        right={
-          <CrudPanel
-            title={editing ? "Edit Timetable Entry" : "Create Timetable Entry"}
-            subtitle={role === "teacher" ? "Timetable is managed by school administration" : "Create or update weekly timetable rows"}
-            canManage={canManage}
-            editing={editing}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-            submitting={submitting}
-            submitLabel={editing ? "Save Timetable" : "Create Timetable"}
-          >
-            <FormGrid>
-              <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
-              <SelectField label="Day" value={form.day} options={weekDays.slice(0, 5)} onChange={(value) => onChange("day", value)} />
-              <Field label="Period" value={form.period} onChange={(value) => onChange("period", value)} />
-              <Field label="Subject" value={form.subject} onChange={(value) => onChange("subject", value)} />
-              <Field label="Teacher" value={form.teacher} onChange={(value) => onChange("teacher", value)} />
-              <Field label="Room" value={form.room} onChange={(value) => onChange("room", value)} />
-            </FormGrid>
-            <div className="mt-6 grid gap-4">
-              {(timetable || []).slice(0, 6).map((item) => (
-                <RecordCard
-                  key={item.id}
-                  title={`${item.className} • ${item.day}`}
-                  subtitle={`${item.period} • ${item.subject}`}
-                  details={[`Teacher: ${item.teacher}`, `Room: ${item.room || "-"}`]}
-                  canManage={canManage}
-                  onEdit={() => onEdit(item)}
-                  onDelete={() => onDelete(item.id)}
-                  busy={submitting}
-                />
-              ))}
-            </div>
-          </CrudPanel>
-        }
-      />
+      {canManage ? (
+        <TwoColumn
+          left={
+            <Panel title="Timetable Entries" subtitle="Published class and subject timetable rows">
+              <SimpleTable
+                columns={["Class", "Day", "Period", "Subject", "Teacher", "Room"]}
+                rows={(timetable || []).map((item) => [item.className, item.day, item.period, item.subject, item.teacher, item.room || "-"])}
+              />
+            </Panel>
+          }
+          right={
+            <CrudPanel
+              title={editing ? "Edit Timetable Entry" : "Create Timetable Entry"}
+              subtitle="Create or update weekly timetable rows"
+              canManage={canManage}
+              editing={editing}
+              onSubmit={onSubmit}
+              onCancel={onCancel}
+              submitting={submitting}
+              submitLabel={editing ? "Save Timetable" : "Create Timetable"}
+            >
+              <FormGrid>
+                <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
+                <SelectField label="Day" value={form.day} options={weekDays.slice(0, 5)} onChange={(value) => onChange("day", value)} />
+                <Field label="Period" value={form.period} onChange={(value) => onChange("period", value)} />
+                <Field label="Subject" value={form.subject} onChange={(value) => onChange("subject", value)} />
+                <Field label="Teacher" value={form.teacher} onChange={(value) => onChange("teacher", value)} />
+                <Field label="Room" value={form.room} onChange={(value) => onChange("room", value)} />
+              </FormGrid>
+            </CrudPanel>
+          }
+        />
+      ) : null}
     </section>
   );
 }
@@ -2010,7 +2057,7 @@ function ExamsSection({
   submitting,
   role
 }) {
-  const timetableClasses = [...new Set((timetable || []).map((item) => item.className))];
+  const viewerMode = !canManage && !canApproveResults;
   return (
     <section className="mt-6 space-y-6">
       <TwoColumn
@@ -2047,7 +2094,7 @@ function ExamsSection({
               </div>
             </Panel>
           }
-          right={
+          right={viewerMode ? <div /> : (
             <CrudPanel
               title={editingExam ? "Update Exam Timetable" : "Upload Exam Timetable"}
               subtitle="Management uploads and updates exam schedules"
@@ -2069,94 +2116,8 @@ function ExamsSection({
                 <SelectField label="Result Status" value={form.resultStatus} options={["Pending", "Processing", "Published"]} onChange={(value) => onExamChange("resultStatus", value)} />
               </FormGrid>
             </CrudPanel>
-          }
+          )}
         />
-      <TwoColumn
-        left={
-          <Panel title="Weekly Class Timetable" subtitle="Week-wise lecture schedule with downloadable format for each class">
-            <div className="space-y-4">
-              {timetableClasses.map((className) => {
-                const classRows = timetable.filter((item) => item.className === className);
-                return (
-                  <div key={className} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-semibold">{className}</p>
-                        <p className="mt-1 text-sm text-slate-500">Complete weekly lecture plan with all mapped subjects</p>
-                      </div>
-                      <DownloadLink
-                        label="Download Weekly Timetable"
-                        content={buildWeeklyTimetableContent(className, timetable)}
-                        filename={`${className.toLowerCase().replaceAll(" ", "-")}-weekly-timetable.txt`}
-                      />
-                    </div>
-                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                      {weekDays
-                        .filter((day) => classRows.some((item) => item.day === day))
-                        .map((day) => (
-                          <div key={`${className}-${day}`} className="rounded-2xl bg-white p-4">
-                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">{day}</p>
-                            <div className="mt-3 space-y-2 text-sm text-slate-600">
-                              {classRows
-                                .filter((item) => item.day === day)
-                                .map((item) => (
-                                  <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 px-3 py-3">
-                                    <div>
-                                      <p className="font-semibold text-brand-slate">{item.subject}</p>
-                                      <p>{item.period}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p>{item.teacher || "Teacher"}</p>
-                                      <p className="text-slate-400">{item.room || "-"}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-        }
-        right={
-          <CrudPanel
-            title={editingTimetable ? "Edit Weekly Timetable Entry" : "Add Weekly Timetable Entry"}
-            subtitle="Management maintains the school timetable used by teachers and students"
-            canManage={canManage}
-            editing={editingTimetable}
-            onSubmit={onTimetableSubmit}
-            onCancel={onCancelTimetable}
-            submitting={submitting === "timetable"}
-            submitLabel={editingTimetable ? "Save Timetable Entry" : "Create Timetable Entry"}
-          >
-            <FormGrid>
-              <Field label="Class" value={timetableForm.className} onChange={(value) => onTimetableChange("className", value)} />
-              <SelectField label="Day" value={timetableForm.day} options={weekDays.slice(0, 5)} onChange={(value) => onTimetableChange("day", value)} />
-              <Field label="Period" value={timetableForm.period} onChange={(value) => onTimetableChange("period", value)} />
-              <Field label="Subject" value={timetableForm.subject} onChange={(value) => onTimetableChange("subject", value)} />
-              <Field label="Teacher" value={timetableForm.teacher} onChange={(value) => onTimetableChange("teacher", value)} />
-              <Field label="Room" value={timetableForm.room} onChange={(value) => onTimetableChange("room", value)} />
-            </FormGrid>
-            <div className="mt-5 space-y-3">
-              {(timetable || []).map((item) => (
-                <RecordCard
-                  key={item.id}
-                  title={`${item.className} • ${item.day}`}
-                  subtitle={`${item.subject} • ${item.period}`}
-                  details={[`Teacher: ${item.teacher || "-"}`, `Room: ${item.room || "-"}`]}
-                  canManage={canManage}
-                  onEdit={() => onEditTimetable(item)}
-                  onDelete={() => onDeleteTimetable(item.id)}
-                  busy={submitting === "timetable"}
-                />
-              ))}
-            </div>
-          </CrudPanel>
-        }
-      />
       <TwoColumn
         left={
           <Panel title="Results Approval" subtitle="Management approves and publishes exam results">
@@ -2176,7 +2137,7 @@ function ExamsSection({
             </div>
           </Panel>
         }
-        right={
+        right={viewerMode ? <div /> : (
           <CrudPanel
             title={editingResult ? "Update Result" : "Create Result"}
             subtitle="Management controls result approval and publishing"
@@ -2198,7 +2159,7 @@ function ExamsSection({
               <Field label="Approved By" value={resultForm.approvedBy} onChange={(value) => onResultChange("approvedBy", value)} />
             </FormGrid>
           </CrudPanel>
-        }
+        )}
       />
     </section>
   );
@@ -2706,15 +2667,7 @@ function SupportSection({ tickets, currentUser }) {
               <div className="rounded-[1.75rem] bg-slate-50 p-5">
                 <p className="font-semibold text-brand-slate">Email Support</p>
                 <p className="mt-2">support@educore.app</p>
-              </div>
-              <div className="rounded-[1.75rem] bg-slate-50 p-5">
-                <p className="font-semibold text-brand-slate">Launch Checklist</p>
-                <p className="mt-2">Validate user creation, fee receipts, homework submissions, timetable downloads, and notifications before client handover.</p>
-              </div>
-              <div className="rounded-[1.75rem] bg-slate-50 p-5">
-                <p className="font-semibold text-brand-slate">Deployment Note</p>
-                <p className="mt-2">SMS, OTP, and live GPS features are integration-ready and should be connected with production provider credentials during deployment.</p>
-              </div>
+                </div>
               <div className="rounded-[1.75rem] bg-slate-50 p-5">
                 <p className="font-semibold text-brand-slate">Raise Support Request</p>
                 <div className="mt-4 space-y-3">
@@ -2749,40 +2702,39 @@ function CalendarList({ items }) {
   const weekBoard = !monthGrid ? buildWeekBoard(items || []) : null;
 
   return (
-    <div className="mb-5 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,35,95,0.08)]">
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-brand-navy px-5 py-4 text-white">
+    <div className="mb-5 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100">Calendar View</p>
-          <p className="mt-1 text-lg font-semibold">{monthGrid?.title || "Weekly Schedule"}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Calendar View</p>
+          <p className="mt-1 text-base font-semibold text-brand-slate">{monthGrid?.title || "Weekly Schedule"}</p>
         </div>
-        <div className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-50">
+        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
           {items?.length ? `${items.length} entries` : "No entries"}
         </div>
       </div>
 
       {monthGrid ? (
-        <div className="bg-slate-950 p-3 text-white">
-          <div className="grid grid-cols-7 gap-px rounded-[1.25rem] bg-slate-800 overflow-hidden">
+        <div className="p-3">
+          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-200">
             {calendarWeekDays.map((day) => (
-              <div key={day} className="bg-slate-900 px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <div key={day} className="bg-slate-50 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 {day}
               </div>
             ))}
             {monthGrid.cells.map((cell) => (
-              <div key={cell.isoDate} className={`min-h-[126px] px-3 py-3 align-top ${cell.isCurrentMonth ? "bg-slate-950" : "bg-slate-900/70 text-slate-500"}`}>
+              <div key={cell.isoDate} className={`min-h-[96px] px-2 py-2 align-top ${cell.isCurrentMonth ? "bg-white" : "bg-slate-50 text-slate-400"}`}>
                 <div className="flex items-center justify-between">
-                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${cell.items.length ? "bg-brand-blue text-white" : cell.isCurrentMonth ? "text-slate-200" : "text-slate-500"}`}>
+                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${cell.items.length ? "bg-brand-blue text-white" : cell.isCurrentMonth ? "text-brand-slate" : "text-slate-400"}`}>
                     {cell.dayNumber}
                   </span>
                 </div>
-                <div className="mt-3 space-y-2">
+                <div className="mt-2 space-y-1.5">
                   {cell.items.slice(0, 3).map((item) => (
-                    <div key={item.id} className="rounded-xl bg-emerald-500/20 px-2 py-1.5 text-xs leading-5 text-emerald-200 ring-1 ring-emerald-400/20">
-                      <p className="font-semibold">{item.title}</p>
-                      <p className="text-[11px] text-emerald-100/80">{item.description}</p>
+                    <div key={item.id} className="rounded-lg bg-brand-paper px-2 py-1 text-[11px] leading-4 text-brand-blue ring-1 ring-blue-100">
+                      <p className="truncate font-semibold">{item.title}</p>
                     </div>
                   ))}
-                  {cell.items.length > 3 ? <p className="text-[11px] text-slate-400">+{cell.items.length - 3} more</p> : null}
+                  {cell.items.length > 3 ? <p className="text-[10px] text-slate-400">+{cell.items.length - 3} more</p> : null}
                 </div>
               </div>
             ))}
@@ -2791,18 +2743,18 @@ function CalendarList({ items }) {
       ) : weekBoard ? (
         <div className="grid gap-px bg-slate-200 md:grid-cols-3 xl:grid-cols-6">
           {weekBoard.map((column) => (
-            <div key={column.day} className="bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{column.day}</p>
-              <div className="mt-4 space-y-3">
+            <div key={column.day} className="bg-slate-50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{column.day}</p>
+              <div className="mt-3 space-y-2">
                 {column.items.length ? (
                   column.items.map((item) => (
-                    <div key={item.id} className="rounded-2xl bg-white p-3 text-sm text-slate-600 shadow-sm">
+                    <div key={item.id} className="rounded-xl bg-white p-3 text-sm text-slate-600 shadow-sm">
                       <p className="font-semibold text-brand-slate">{item.title}</p>
-                      <p className="mt-1 text-slate-500">{item.description}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.description}</p>
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl bg-white p-3 text-sm text-slate-400 shadow-sm">No entries</div>
+                  <div className="rounded-xl bg-white p-3 text-sm text-slate-400 shadow-sm">No entries</div>
                 )}
               </div>
             </div>
@@ -3818,9 +3770,11 @@ function mapItemToForm(section, item) {
       return {
         name: item.name || "",
         admissionNo: item.admissionNo || "",
+        rollNumber: item.rollNumber || "",
         applicationNo: item.applicationNo || "",
         className: item.className || "",
         parentName: item.parentName || "",
+        mobileNumber: item.mobileNumber || "",
         admissionDate: item.admissionDate || "",
         academicHistory: item.academicHistory || "",
         feesDue: String(item.feesDue ?? ""),
@@ -3847,6 +3801,7 @@ function mapItemToForm(section, item) {
         employeeId: item.employeeId || "",
         name: item.name || "",
         portalRole: item.portalRole || "teacher",
+        phone: item.phone || "",
         designation: item.designation || "",
         department: item.department || "",
         qualification: item.qualification || "",

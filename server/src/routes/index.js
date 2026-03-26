@@ -25,6 +25,7 @@ async function createLinkedUserAccount({
   role,
   linkedStudentId = "",
   linkedStaffId = "",
+  phone = "",
   campus = "Rahul Education Campus",
   avatar = ""
 }) {
@@ -47,9 +48,22 @@ async function createLinkedUserAccount({
     linkedStaffId,
     accessPermissions: [],
     responsibilities: "",
-    phone: "",
+    phone,
     campus,
     avatar
+  });
+}
+
+function parseCsvContent(csvData = "") {
+  const lines = String(csvData).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) {
+    return [];
+  }
+
+  const headers = lines[0].split(",").map((item) => item.trim());
+  return lines.slice(1).map((line) => {
+    const values = line.split(",").map((item) => item.trim());
+    return Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
   });
 }
 
@@ -77,6 +91,8 @@ export function createApiRouter(getDbStatus) {
         attendance: numberValue(req.body.attendance),
         feesDue: numberValue(req.body.feesDue),
         performance: req.body.performance || "Pending",
+        rollNumber: req.body.rollNumber || "",
+        mobileNumber: req.body.mobileNumber || "",
         transportRoute: req.body.transportRoute || "Not assigned",
         busStop: req.body.busStop || "",
         busTrackingStatus: req.body.busTrackingStatus || "",
@@ -102,6 +118,7 @@ export function createApiRouter(getDbStatus) {
         name: record.name,
         role: "student",
         linkedStudentId: record.id,
+        phone: record.mobileNumber || record.emergencyContact || "",
         campus: "Rahul Education Campus",
         avatar: record.avatar
       });
@@ -125,6 +142,7 @@ export function createApiRouter(getDbStatus) {
         employeeId: req.body.employeeId,
         name: req.body.name,
         portalRole: req.body.portalRole,
+        phone: req.body.phone || "",
         designation: req.body.designation,
         department: req.body.department,
         qualification: req.body.qualification || "Not specified",
@@ -140,6 +158,7 @@ export function createApiRouter(getDbStatus) {
         name: record.name,
         role: req.body.portalRole,
         linkedStaffId: record.id,
+        phone: record.phone || "",
         campus: "Rahul Education Campus"
       });
 
@@ -287,6 +306,7 @@ export function createApiRouter(getDbStatus) {
         employeeId: body.employeeId,
         name: body.name,
         portalRole: body.portalRole || "teacher",
+        phone: body.phone || "",
         designation: body.designation,
         department: body.department,
         qualification: body.qualification || "Not specified",
@@ -298,6 +318,7 @@ export function createApiRouter(getDbStatus) {
         employeeId: body.employeeId,
         name: body.name,
         portalRole: body.portalRole || "teacher",
+        phone: body.phone || "",
         designation: body.designation,
         department: body.department,
         qualification: body.qualification || "Not specified",
@@ -327,6 +348,8 @@ export function createApiRouter(getDbStatus) {
         admissionDate: body.admissionDate || "",
         academicHistory: body.academicHistory || "",
         attendance: numberValue(body.attendance),
+        rollNumber: body.rollNumber || "",
+        mobileNumber: body.mobileNumber || "",
         feesDue: numberValue(body.feesDue),
         performance: body.performance || "Pending",
         transportRoute: body.transportRoute || "Not assigned",
@@ -356,6 +379,8 @@ export function createApiRouter(getDbStatus) {
         admissionDate: body.admissionDate || "",
         academicHistory: body.academicHistory || "",
         attendance: numberValue(body.attendance),
+        rollNumber: body.rollNumber || "",
+        mobileNumber: body.mobileNumber || "",
         feesDue: numberValue(body.feesDue),
         performance: body.performance || "Pending",
         transportRoute: body.transportRoute || "Not assigned",
@@ -376,6 +401,73 @@ export function createApiRouter(getDbStatus) {
           body.avatar ||
           "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=300&q=80"
       })
+    })
+  );
+
+  router.post(
+    "/students/import-csv",
+    authMiddleware,
+    requireRoles("super_admin", "school_admin", "principal", "vice_principal"),
+    withAsync(async (req, res) => {
+      const records = parseCsvContent(req.body.csvData);
+      if (!records.length) {
+        return res.status(400).json({ message: "CSV data is empty or invalid." });
+      }
+
+      const createdStudents = [];
+      for (const row of records) {
+        if (!row.name || !row.admissionNo || !row.className || !row.parentName) {
+          continue;
+        }
+
+        const studentRecord = {
+          id: `stu-${Date.now()}-${createdStudents.length + 1}`,
+          name: row.name,
+          applicationNo: row.applicationNo || "",
+          admissionNo: row.admissionNo,
+          rollNumber: row.rollNumber || "",
+          className: row.className,
+          parentName: row.parentName,
+          admissionDate: row.admissionDate || "",
+          mobileNumber: row.mobileNumber || "",
+          academicHistory: row.academicHistory || "",
+          attendance: numberValue(row.attendance),
+          feesDue: numberValue(row.feesDue),
+          performance: row.performance || "Pending",
+          transportRoute: row.transportRoute || "Not assigned",
+          busStop: row.busStop || "",
+          busTrackingStatus: row.busTrackingStatus || "",
+          medical: row.medical || "Not updated",
+          bloodGroup: row.bloodGroup || "",
+          emergencyContact: row.emergencyContact || "",
+          siblingName: row.siblingName || "",
+          siblingClass: row.siblingClass || "",
+          tcIssued: row.tcIssued || "No",
+          alumniStatus: row.alumniStatus || "Active",
+          promotedTo: row.promotedTo || "",
+          academicRecords: [],
+          documentUploads: [],
+          documents: 0,
+          avatar: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=300&q=80"
+        };
+
+        const created = await repositories.students.create(studentRecord);
+        await createLinkedUserAccount({
+          username: row.portalUsername || row.admissionNo,
+          name: studentRecord.name,
+          role: "student",
+          linkedStudentId: studentRecord.id,
+          phone: studentRecord.mobileNumber || studentRecord.emergencyContact || "",
+          campus: "Rahul Education Campus",
+          avatar: studentRecord.avatar
+        });
+        createdStudents.push(created);
+      }
+
+      return res.status(201).json({
+        imported: createdStudents.length,
+        students: createdStudents
+      });
     })
   );
 

@@ -5,12 +5,13 @@ import { repositories } from "../services/repositories.js";
 import { sendPasswordResetOtp } from "../services/otpService.js";
 
 export async function loginController(req, res) {
-  const { email, password } = req.body;
-  const loginId = String(email || "").trim();
+  const { email, password, mobileNumber } = req.body;
+  const loginId = String(email || mobileNumber || "").trim();
   const user =
     (await repositories.users.findOne({ email: loginId })) ||
     (await repositories.users.findOne({ username: loginId })) ||
-    mockUsers.find((item) => item.email === loginId || item.username === loginId);
+    (await repositories.users.findOne({ phone: loginId })) ||
+    mockUsers.find((item) => item.email === loginId || item.username === loginId || item.phone === loginId);
 
   if (!user) {
     return res.status(401).json({ message: "Invalid email or password" });
@@ -69,18 +70,19 @@ export async function meController(req, res) {
 }
 
 export async function forgotPasswordController(req, res) {
-  const loginId = String(req.body.email || req.body.username || "").trim();
+  const loginId = String(req.body.email || req.body.username || req.body.mobileNumber || "").trim();
   if (!loginId) {
-    return res.status(400).json({ message: "Email or username is required" });
+    return res.status(400).json({ message: "Email, username, or mobile number is required" });
   }
 
   const user =
     (await repositories.users.findOne({ email: loginId })) ||
     (await repositories.users.findOne({ username: loginId })) ||
-    mockUsers.find((item) => item.email === loginId || item.username === loginId);
+    (await repositories.users.findOne({ phone: loginId })) ||
+    mockUsers.find((item) => item.email === loginId || item.username === loginId || item.phone === loginId);
 
   if (!user) {
-    return res.status(404).json({ message: "No account found for the provided email or username" });
+    return res.status(404).json({ message: "No account found for the provided email, username, or mobile number" });
   }
 
   const otpResult = await sendPasswordResetOtp({ user });
