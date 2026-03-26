@@ -10,10 +10,23 @@ async function ensureSeed(model, fallbackCollection, prepareSeed) {
     return;
   }
 
-  const count = await model.countDocuments();
-  if (count === 0 && fallbackCollection.length > 0) {
-    const seedRecords = prepareSeed ? await prepareSeed(fallbackCollection) : fallbackCollection;
-    await model.insertMany(seedRecords, { ordered: false });
+  if (fallbackCollection.length === 0) {
+    return;
+  }
+
+  const seedRecords = prepareSeed ? await prepareSeed(fallbackCollection) : fallbackCollection;
+  const ids = seedRecords.map((record) => record.id).filter(Boolean);
+
+  if (ids.length === 0) {
+    return;
+  }
+
+  const existing = await model.find({ id: { $in: ids } }).select({ id: 1, _id: 0 }).lean();
+  const existingIds = new Set(existing.map((record) => record.id));
+  const missingRecords = seedRecords.filter((record) => !existingIds.has(record.id));
+
+  if (missingRecords.length > 0) {
+    await model.insertMany(missingRecords, { ordered: false });
   }
 }
 

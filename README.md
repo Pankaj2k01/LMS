@@ -14,12 +14,15 @@ EduCore is a school LMS and management portal built for a single-school deployme
 
 EduCore currently includes these working modules:
 - Overview Dashboard
+- School Onboarding & Configuration
 - Student Information System
 - Staff Management
 - Attendance
+- Timetable Management
 - Exams & Results
 - Fee Management
 - Homework & Assignment Management
+- Library
 - Transport
 - Academic Content
 - Reports
@@ -35,6 +38,9 @@ Supported roles:
 - `school_admin`
 - `vice_principal`
 - `teacher`
+- `accountant`
+- `librarian`
+- `transport_staff`
 - `student`
 
 Role intent:
@@ -42,6 +48,9 @@ Role intent:
 - `school_admin`: principal-level institutional control
 - `vice_principal`: academic and operational supervision
 - `teacher`: class-scoped academic workflows
+- `accountant`: fee, dues, and finance reporting workflows
+- `librarian`: library desk and issue-return visibility
+- `transport_staff`: route, ETA, and student transport operations
 - `student`: self-scoped portal with linked fee, attendance, result, homework, transport, and notices
 
 Parent-facing behavior is handled through the student account for the current release.
@@ -138,7 +147,26 @@ Students can:
 
 Calendar visibility:
 - open `Attendance`
-- the calendar view is shown on the attendance page
+- the `Attendance Calendar` panel is shown near the top of the attendance page
+
+### Timetable Management
+
+Management can:
+- create timetable entries
+- update timetable rows
+- publish weekly schedules by class
+- download weekly timetable by class
+
+Teachers can:
+- view their weekly lecture timetable
+
+Students can:
+- view their class timetable
+- download timetable from the timetable and exams views
+
+Calendar visibility:
+- open `Timetable`
+- the `Weekly Timetable Calendar` panel is shown at the top of the timetable page
 
 ### Exams & Results
 
@@ -217,7 +245,7 @@ Features:
 
 Calendar visibility:
 - open `Notifications`
-- the calendar view is shown on the notifications page
+- the `Notification Calendar` panel is shown near the top of the notifications page
 
 Examples:
 - holiday circular
@@ -236,6 +264,15 @@ Transport module includes:
 - trip status
 
 Student transport visibility is separate from the student profile and available in the dedicated module too.
+
+### Library
+
+Includes:
+- library dashboard for librarian
+- book catalogue view
+- issue-return status
+- due-date visibility
+- student/library record visibility based on role
 
 ### Academic Content
 
@@ -292,6 +329,9 @@ Current seeded access:
 - `admin@sms.com` / `admin123`
 - `vice@sms.com` / `vice123`
 - `teacher@sms.com` / `teacher123`
+- `accountant@sms.com` / `accountant123`
+- `librarian@sms.com` / `librarian123`
+- `transport@sms.com` / `transport123`
 - `student@sms.com` / `student123`
 
 ## File Upload Support
@@ -340,8 +380,8 @@ Create `server/.env`:
 PORT=5001
 JWT_SECRET=change-this-secret
 MONGODB_URI=your_mongodb_connection_string
-CLIENT_URL=http://127.0.0.1:5174
-CLIENT_URLS=http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:5173,http://localhost:5174
+CLIENT_URL=http://127.0.0.1:5175
+CLIENT_URLS=http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175,http://localhost:5173,http://localhost:5174,http://localhost:5175
 ```
 
 Create `web/.env`:
@@ -373,7 +413,7 @@ npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
 Open:
-- Frontend: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
+- Frontend: [http://127.0.0.1:5175/](http://127.0.0.1:5175/)
 - Backend health: [http://127.0.0.1:5001/api/health](http://127.0.0.1:5001/api/health)
 
 ## Deployment Files

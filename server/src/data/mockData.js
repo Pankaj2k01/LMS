@@ -56,6 +56,51 @@ export const mockUsers = [
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
   },
   {
+    id: "accountant-001",
+    name: "Nitin Verma",
+    username: "accountant@sms.com",
+    email: "accountant@sms.com",
+    password: "accountant123",
+    role: "accountant",
+    linkedStaffId: "staff-002",
+    accessPermissions: ["overview", "fees", "reports", "leave", "support", "settings"],
+    responsibilities: "Manages fee records, pending dues, receipts, and finance reports",
+    phone: "+91 98111 22003",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "librarian-001",
+    name: "Ritu Singh",
+    username: "librarian@sms.com",
+    email: "librarian@sms.com",
+    password: "librarian123",
+    role: "librarian",
+    linkedStaffId: "staff-003",
+    accessPermissions: ["overview", "support", "settings"],
+    responsibilities: "Manages library catalogue, issue desk, and digital resources",
+    phone: "+91 98222 33004",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=300&q=80"
+  },
+  {
+    id: "transport-001",
+    name: "Suresh Patil",
+    username: "transport@sms.com",
+    email: "transport@sms.com",
+    password: "transport123",
+    role: "transport_staff",
+    linkedStaffId: "staff-004",
+    accessPermissions: ["overview", "transport", "support", "settings"],
+    responsibilities: "Monitors bus routes, ETA, and student transport operations",
+    phone: "+91 98333 44005",
+    campus: "Rahul Education Campus",
+    avatar:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80"
+  },
+  {
     id: "student-001",
     name: "Ivan Vinod Vishwakarma",
     username: "student@sms.com",
@@ -319,6 +364,18 @@ export const mockStaff = [
     qualification: "MLIS",
     workload: "Catalog + issue/return",
     leaveBalance: 10,
+    classes: "Institution-wide"
+  },
+  {
+    id: "staff-004",
+    employeeId: "EMP-1004",
+    name: "Suresh Patil",
+    portalRole: "transport_staff",
+    designation: "Transport Supervisor",
+    department: "Transport",
+    qualification: "Fleet Operations Certification",
+    workload: "Route monitoring and student pickup operations",
+    leaveBalance: 11,
     classes: "Institution-wide"
   }
 ];

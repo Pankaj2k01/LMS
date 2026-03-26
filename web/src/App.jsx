@@ -82,13 +82,16 @@ import {
 
 const navigation = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "onboarding", label: "Onboarding", icon: School },
   { id: "sis", label: "Students", icon: Users },
   { id: "staff", label: "Staff", icon: Briefcase },
   { id: "attendance", label: "Attendance", icon: CheckSquare },
+  { id: "timetable", label: "Timetable", icon: ClipboardList },
   { id: "exams", label: "Exams & Results", icon: GraduationCap },
   { id: "fees", label: "Fee Management", icon: CreditCard },
   { id: "homework", label: "Homework", icon: BookOpen },
   { id: "transport", label: "Transport", icon: Bus },
+  { id: "library", label: "Library", icon: Library },
   { id: "content", label: "Academic Content", icon: SquareLibrary },
   { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "communication", label: "Notifications", icon: Megaphone },
@@ -98,13 +101,16 @@ const navigation = [
 ];
 
 const moduleAccessOptions = [
+  { id: "onboarding", label: "Onboarding" },
   { id: "sis", label: "Students" },
   { id: "staff", label: "Staff" },
   { id: "attendance", label: "Attendance" },
+  { id: "timetable", label: "Timetable" },
   { id: "exams", label: "Exams & Results" },
   { id: "fees", label: "Fee Management" },
   { id: "homework", label: "Homework" },
   { id: "transport", label: "Transport" },
+  { id: "library", label: "Library" },
   { id: "content", label: "Academic Content" },
   { id: "reports", label: "Reports" },
   { id: "communication", label: "Notifications" },
@@ -122,12 +128,12 @@ const roleTabs = {
   super_admin: navigation.map((item) => item.id),
   school_admin: navigation.map((item) => item.id),
   vice_principal: navigation.map((item) => item.id),
-  teacher: ["overview", "sis", "attendance", "exams", "fees", "homework", "content", "reports", "communication", "leave", "support", "settings"],
+  teacher: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "content", "reports", "communication", "leave", "support", "settings"],
   support_agent: ["settings"],
-  accountant: ["settings"],
-  librarian: ["settings"],
+  accountant: ["overview", "fees", "reports", "leave", "support", "settings"],
+  librarian: ["overview", "library", "support", "settings"],
   parent: ["settings"],
-  student: ["overview", "sis", "attendance", "exams", "fees", "homework", "transport", "content", "communication", "leave", "support", "settings"],
+  student: ["overview", "sis", "attendance", "timetable", "exams", "fees", "homework", "transport", "library", "content", "communication", "leave", "support", "settings"],
   transport_staff: ["overview", "transport", "support", "settings"]
 };
 
@@ -262,26 +268,29 @@ const getAccessibleTabsForUser = (user) => {
     return ["overview", "settings"];
   }
 
-  if (["school_admin", "super_admin"].includes(user.role)) {
+  if (["school_admin", "super_admin", "vice_principal"].includes(user.role)) {
     return baseTabs;
   }
 
   const assignedTabs = Array.isArray(user.accessPermissions) && user.accessPermissions.length > 0 ? user.accessPermissions : baseTabs;
   const filtered = baseTabs.filter((tab) => assignedTabs.includes(tab) || ["overview", "settings"].includes(tab));
-  const roleEnhancements = baseTabs.filter((tab) => ["transport", "content", "reports", "support"].includes(tab));
+  const roleEnhancements = baseTabs.filter((tab) => ["transport", "library", "content", "reports", "support", "timetable"].includes(tab));
   return [...new Set(["overview", ...filtered, ...roleEnhancements, "settings"])];
 };
 
 const getPageMeta = (activeTab) => {
   const labels = {
     overview: { title: "Dashboard", subtitle: "Role-based overview of academic and operational activity." },
+    onboarding: { title: "Onboarding", subtitle: "School setup wizard, academic configuration, and go-live checklist." },
     sis: { title: "Students", subtitle: "Student profiles, fee status, and class-level details." },
     staff: { title: "Staff", subtitle: "Staff profiles, roles, responsibilities, and portal access." },
     attendance: { title: "Attendance", subtitle: "Daily attendance entries and class attendance history." },
+    timetable: { title: "Timetable", subtitle: "Weekly class schedule, lecture allocation, and downloadable timetable." },
     exams: { title: "Examinations", subtitle: "Exam schedules, result status, and academic performance." },
     fees: { title: "Fee Management", subtitle: "Collection, dues, receipts, and payment status." },
     homework: { title: "Homework", subtitle: "Assignments, due dates, and submission tracking." },
     transport: { title: "Transport", subtitle: "Routes, bus tracking, ETA, and assigned transport details." },
+    library: { title: "Library", subtitle: "Catalogue, issue-return records, due dates, and digital resources." },
     content: { title: "Academic Content", subtitle: "Syllabus progress, study resources, and chapter completion." },
     reports: { title: "Reports", subtitle: "Operational and academic reports with export-ready views." },
     communication: { title: "Notifications", subtitle: "Broadcast circulars, announcements, and notices." },
@@ -672,6 +681,8 @@ function App() {
     }
 
     switch (activeTab) {
+      case "onboarding":
+        return <OnboardingSection onboarding={platform.onboarding || []} currentUser={currentUser} />;
       case "sis":
         return (
           <StudentsSection
@@ -743,6 +754,22 @@ function App() {
             onDelete={(id) => handleDelete("attendance", deleteAttendanceRecord, id)}
             onCancel={() => resetForm("attendance")}
             submitting={submitting === "attendance"}
+            role={currentUser?.role}
+          />
+        );
+      case "timetable":
+        return (
+          <TimetableSection
+            timetable={platform.timetable || []}
+            form={forms.timetable}
+            editing={Boolean(editing.timetable)}
+            canManage={["super_admin", "school_admin", "vice_principal"].includes(currentUser?.role)}
+            onChange={(field, value) => updateForm("timetable", field, value)}
+            onSubmit={() => saveSection("timetable", createTimetableEntry, updateTimetableEntry)}
+            onEdit={(item) => startEdit("timetable", item)}
+            onDelete={(id) => handleDelete("timetable", deleteTimetableEntry, id)}
+            onCancel={() => resetForm("timetable")}
+            submitting={submitting === "timetable"}
             role={currentUser?.role}
           />
         );
@@ -881,6 +908,8 @@ function App() {
         );
       case "transport":
         return <TransportSection transport={platform.transport || []} role={currentUser?.role} />;
+      case "library":
+        return <LibrarySection library={platform.library || []} role={currentUser?.role} />;
       case "content":
         return <ContentSection content={platform.content || []} role={currentUser?.role} />;
       case "reports":
@@ -1317,24 +1346,60 @@ function SuperAdminSection({ stats, tenants, tickets, featureFlags, form, editin
   );
 }
 
-function OnboardingSection({ items }) {
+function OnboardingSection({ onboarding, currentUser }) {
+  const steps = [
+    "School Profile",
+    "Academic Setup",
+    "Classes & Sections",
+    "Subjects & Curriculum",
+    "Staff Setup",
+    "Student Import",
+    "Fee Structure",
+    "Branding",
+    "Module Configuration",
+    "Go Live"
+  ];
+
   return (
-    <section className="mt-6">
-      <Panel title="School Onboarding & Configuration" subtitle="Progress through profile, academics, branding, modules, and go-live">
-        <div className="grid gap-4 lg:grid-cols-3">
-          {items.map((item) => (
-            <div key={item.id} className="rounded-[1.75rem] bg-slate-50 p-5">
-              <p className="text-lg font-semibold">{item.institution}</p>
-              <p className="mt-2 text-sm text-slate-500">Current step: {item.step}</p>
-              <p className="mt-1 text-sm text-slate-500">Owner: {item.owner}</p>
-              <div className="mt-5 flex items-center justify-between">
-                <span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-brand-blue">{item.status}</span>
-                <span className="text-sm font-medium text-slate-500">ETA {item.eta}</span>
-              </div>
+    <section className="mt-6 space-y-6">
+      <Panel title="Onboarding Wizard" subtitle="School configuration and activation pipeline for EduCore">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {steps.map((step, index) => (
+            <div key={step} className="rounded-[1.5rem] bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Step {index + 1}</p>
+              <p className="mt-2 text-sm font-semibold text-brand-slate">{step}</p>
             </div>
           ))}
         </div>
       </Panel>
+      <TwoColumn
+        left={
+          <Panel title="Active School Setups" subtitle="Current onboarding status by institution">
+            <div className="space-y-4">
+              {(onboarding || []).map((item) => (
+                <RecordCard
+                  key={item.id}
+                  title={item.institution}
+                  subtitle={`${item.step} • ${item.status}`}
+                  details={[`Owner: ${item.owner}`, `ETA: ${item.eta}`]}
+                />
+              ))}
+            </div>
+          </Panel>
+        }
+        right={
+          <Panel title="Configuration Coverage" subtitle="Core setup areas expected before go-live">
+            <div className="grid gap-4">
+              <KpiTile label="Academic Calendar" value="Ready" hint="Years, terms, holidays, exam windows" />
+              <KpiTile label="Grading Schemes" value="Ready" hint="Percentage, GPA, CGPA, custom grading" />
+              <KpiTile label="Attendance Rules" value="Ready" hint="Working hours, periods, shortage threshold" />
+              <KpiTile label="Notification Preferences" value="Ready" hint="SMS, email, push, template triggers" />
+              <KpiTile label="Languages" value="4" hint="English, Hindi, Marathi, Tamil" />
+              <KpiTile label="Reviewed By" value={currentUser?.name || "Admin"} hint="Current portal operator" />
+            </div>
+          </Panel>
+        }
+      />
     </section>
   );
 }
@@ -1721,6 +1786,94 @@ function AttendanceSection({ attendance, records, students, form, editing, canMa
           </Panel>
         </>
       )}
+    </section>
+  );
+}
+
+function TimetableSection({ timetable, form, editing, canManage, onChange, onSubmit, onEdit, onDelete, onCancel, submitting, role }) {
+  const timetableClasses = [...new Set((timetable || []).map((item) => item.className))];
+  return (
+    <section className="mt-6 space-y-6">
+      <Panel title="Weekly Timetable Calendar" subtitle="Class-wise weekly timetable with download support">
+        {timetableClasses.length ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {timetableClasses.map((className) => (
+              <div key={className} className="rounded-[1.75rem] bg-slate-50 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-semibold text-brand-slate">{className}</p>
+                    <p className="text-sm text-slate-500">Weekly class schedule</p>
+                  </div>
+                  <DownloadLink
+                    label="Download Timetable"
+                    content={buildWeeklyTimetableContent(className, timetable)}
+                    filename={`${className.toLowerCase().replaceAll(" ", "-")}-weekly-timetable.txt`}
+                  />
+                </div>
+                <div className="mt-4">
+                  <CalendarList
+                    items={(timetable || [])
+                      .filter((item) => item.className === className)
+                      .map((item) => ({
+                        id: item.id,
+                        date: item.day,
+                        title: `${item.period} • ${item.subject}`,
+                        description: `${item.teacher} • Room ${item.room || "-"}`
+                      }))}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">No timetable entries available.</div>
+        )}
+      </Panel>
+      <TwoColumn
+        left={
+          <Panel title="Timetable Entries" subtitle="Published class and subject timetable rows">
+            <SimpleTable
+              columns={["Class", "Day", "Period", "Subject", "Teacher", "Room"]}
+              rows={(timetable || []).map((item) => [item.className, item.day, item.period, item.subject, item.teacher, item.room || "-"])}
+            />
+          </Panel>
+        }
+        right={
+          <CrudPanel
+            title={editing ? "Edit Timetable Entry" : "Create Timetable Entry"}
+            subtitle={role === "teacher" ? "Timetable is managed by school administration" : "Create or update weekly timetable rows"}
+            canManage={canManage}
+            editing={editing}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
+            submitting={submitting}
+            submitLabel={editing ? "Save Timetable" : "Create Timetable"}
+          >
+            <FormGrid>
+              <Field label="Class" value={form.className} onChange={(value) => onChange("className", value)} />
+              <SelectField label="Day" value={form.day} options={weekDays.slice(0, 5)} onChange={(value) => onChange("day", value)} />
+              <Field label="Period" value={form.period} onChange={(value) => onChange("period", value)} />
+              <Field label="Subject" value={form.subject} onChange={(value) => onChange("subject", value)} />
+              <Field label="Teacher" value={form.teacher} onChange={(value) => onChange("teacher", value)} />
+              <Field label="Room" value={form.room} onChange={(value) => onChange("room", value)} />
+            </FormGrid>
+            <div className="mt-6 grid gap-4">
+              {(timetable || []).slice(0, 6).map((item) => (
+                <RecordCard
+                  key={item.id}
+                  title={`${item.className} • ${item.day}`}
+                  subtitle={`${item.period} • ${item.subject}`}
+                  details={[`Teacher: ${item.teacher}`, `Room: ${item.room || "-"}`]}
+                  canManage={canManage}
+                  onEdit={() => onEdit(item)}
+                  onDelete={() => onDelete(item.id)}
+                  busy={submitting}
+                />
+              ))}
+            </div>
+          </CrudPanel>
+        }
+      />
     </section>
   );
 }
@@ -2484,22 +2637,24 @@ function SupportSection({ tickets, currentUser }) {
 }
 
 function CalendarList({ items }) {
-  if (!items?.length) {
-    return null;
-  }
-
   return (
     <div className="mb-5 rounded-[1.75rem] bg-slate-50 p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Calendar View</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {items.map((item) => (
-          <div key={item.id} className="rounded-2xl bg-white p-4 text-sm text-slate-600">
-            <p className="font-semibold text-brand-slate">{item.date}</p>
-            <p className="mt-1">{item.title}</p>
-            <p className="mt-2 text-slate-500">{item.description}</p>
-          </div>
-        ))}
-      </div>
+      {items?.length ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {items.map((item) => (
+            <div key={item.id} className="rounded-2xl bg-white p-4 text-sm text-slate-600">
+              <p className="font-semibold text-brand-slate">{item.date}</p>
+              <p className="mt-1">{item.title}</p>
+              <p className="mt-2 text-slate-500">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-slate-500">
+          No calendar entries are available for this view yet.
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { mockAttendance, mockContent, mockIntegrations, mockLibrary, mockReports, mockRoles, mockTransport } from "../data/mockData.js";
+import { mockAttendance, mockContent, mockIntegrations, mockLibrary, mockOnboarding, mockReports, mockRoles, mockTransport, mockUsers } from "../data/mockData.js";
 import { repositories } from "../services/repositories.js";
 
 export function healthController(getDbStatus) {
@@ -48,13 +48,16 @@ function normalizeText(value) {
 
 async function resolveUserContext(userId) {
   const [user, staff] = await Promise.all([repositories.users.getById(userId), repositories.staff.list()]);
-  const staffProfile = staff.find((item) => item.name === user?.name);
+  const resolvedUser = user || mockUsers.find((item) => item.id === userId) || null;
+  const staffProfile =
+    staff.find((item) => item.id === resolvedUser?.linkedStaffId) ||
+    staff.find((item) => item.name === resolvedUser?.name);
   const assignedClasses = staffProfile?.classes
     ? staffProfile.classes.split(",").map((item) => item.trim()).filter(Boolean)
     : [];
 
   return {
-    user,
+    user: resolvedUser,
     assignedClasses
   };
 }
@@ -70,6 +73,7 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
     transport: mockTransport,
     content: mockContent,
     reports: mockReports,
+    onboarding: mockOnboarding,
     supportTickets: data.supportTickets,
     roles: mockRoles,
     integrations: mockIntegrations
@@ -113,6 +117,29 @@ function scopePlatformDataByRole(role, data, assignedClasses = [], user = null) 
         leaves: data.leaves.filter((item) => item.role === "Teacher" || item.role === "Student"),
         content: mockContent.filter((item) => classMatches(teacherClasses, item.className)),
         reports: mockReports
+      };
+    case "accountant":
+      return {
+        ...base,
+        staff: data.staff.filter((item) => ["accountant", "school_admin", "vice_principal"].includes(item.portalRole)),
+        fees: data.fees,
+        reports: mockReports,
+        leaves: data.leaves.filter((item) => item.applicant === user?.name || item.role === "Accountant")
+      };
+    case "librarian":
+      return {
+        ...base,
+        library: mockLibrary,
+        reports: mockReports.filter((item) => /library|usage|issue/i.test(`${item.title} ${item.category || ""}`)),
+        leaves: data.leaves.filter((item) => item.applicant === user?.name || item.role === "Librarian")
+      };
+    case "transport_staff":
+      return {
+        ...base,
+        transport: mockTransport,
+        students: data.students.filter((item) => Boolean(item.transportRoute)),
+        attendanceRecords: data.attendanceRecords,
+        leaves: data.leaves.filter((item) => item.applicant === user?.name || item.role === "Transport")
       };
     case "student": {
       const currentStudent =
